@@ -166,6 +166,7 @@ class MultiplierResult(BaseModel):
     ci95: tuple[float, float] | None = None
     p_gt_1: float | None = None
     abstain: bool = False                           # Day 2 gate
+    abstain_message: str | None = None              # Explanation for abstention
     sobol: dict | None = None                       # Day 2
     enabled_edges: list[str] = []
     catalog_version: str
