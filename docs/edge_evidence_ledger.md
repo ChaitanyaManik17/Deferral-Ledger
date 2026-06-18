@@ -111,4 +111,4 @@ Output: `M = PV(Σ enabled downstream $) / deferred $D`
 
 ---
 
-*Ledger status: E0–E7 all filled. E1 is deliberately wide and flagged as the top research priority. EV-1 compliance: all edges cited and dated.*
+*Ledger status: E0–E7 all filled. E1 is deliberately wide and flagged as the top research priority. Day-2 Sobol global sensitivity analysis confirms that E1 (LSL→BLL) accounts for the vast majority of output variance, making it the most critical parameter to measure or refine. EV-1 compliance: all edges cited and dated.*

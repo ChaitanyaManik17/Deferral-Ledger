@@ -94,103 +94,92 @@ def evaluate(
     children_under6 = tract.children_under6
     enabled_edges = set(scenario.enabled_edges)
 
-    # 4. Read edge priors (point estimates)
-    # Helper to get point estimate or default if edge is absent
+    # 4. Assemble point estimate params as length-1 arrays for compute_multiplier
+    import numpy as np
+    import cascade
+
+    params: dict[str, np.ndarray] = {}
+    for edge in edges:
+        if edge.id in enabled_edges:
+            params[edge.id] = np.array([point(edge)])
+
+    # 5. Evaluate deterministic cascade via vectorized compute_multiplier
+    multiplier_array = cascade.compute_multiplier(params, tract, scenario)
+    multiplier_point = float(multiplier_array[0])
+
+    # 6. Calculate individual edge contributions (attributing cost / deferred_dollars) for metadata
+    # (recreating the contribution path mathematics locally for detail reporting)
     def get_point(edge_id: str, default: float) -> float:
         edge = get_edge(edge_id, edges)
         if edge is not None and edge.id in enabled_edges:
             return point(edge)
         return default
 
-    # Denominator driver
     cost_per_line = get_point("E0_cost_per_line", 4700.0)
+    deferred_dollars = lines_count * cost_per_line
 
-    # Exposure & BLL factors
     bll_increment_factor = get_point("E1_lsl_to_bll", 1.5)
     bll_to_iq_factor = get_point("E2_bll_to_iq", -0.87)
 
-    # Outcome factors
     iq_to_earnings_factor = get_point("E3_iq_to_earnings", 11850.0)
     bll_to_sped_factor = get_point("E4_bll_to_sped", 11000.0)
     bll_to_healthcare_factor = get_point("E5_bll_to_healthcare", 7500.0)
     adult_bll_to_cvd_ckd_factor = get_point("E6_adult_bll_to_cvd_ckd", 1.70)
     bll_to_crime_factor = get_point("E7_bll_to_crime", 1.15)
 
-    # 5. Deferred Dollars (Denominator)
-    deferred_dollars = lines_count * cost_per_line
-
-    # 6. Calculate pathway costs (discounted to year 0)
     discount_factor = (1.0 + discount_rate) ** -defer_years
+    bll_increment_per_child = np.minimum(defer_years * bll_increment_factor, 10.0)
 
-    # Shared exposure inputs
-    bll_increment_per_child = defer_years * bll_increment_factor
-
-    # Path -> E2 -> E3 (IQ & Earnings Loss)
+    # Path 1: E1 -> E2 -> E3
     if (
         "E1_lsl_to_bll" in enabled_edges
         and "E2_bll_to_iq" in enabled_edges
         and "E3_iq_to_earnings" in enabled_edges
     ):
-        undiscounted_earnings = children_under6 * bll_increment_per_child * abs(bll_to_iq_factor) * iq_to_earnings_factor
-        earnings_cost = undiscounted_earnings * discount_factor
+        earnings_cost = children_under6 * bll_increment_per_child * abs(bll_to_iq_factor) * iq_to_earnings_factor * discount_factor
     else:
         earnings_cost = 0.0
 
-    # Path 2: E1 -> E4 (Special Education)
+    # Path 2: E1 -> E4
     if "E1_lsl_to_bll" in enabled_edges and "E4_bll_to_sped" in enabled_edges:
-        undiscounted_sped = children_under6 * bll_increment_per_child * bll_to_sped_factor
-        sped_cost = undiscounted_sped * discount_factor
+        sped_cost = children_under6 * bll_increment_per_child * bll_to_sped_factor * discount_factor
     else:
         sped_cost = 0.0
 
-    # Path 3: E1 -> E5 (Healthcare)
+    # Path 3: E1 -> E5
     if "E1_lsl_to_bll" in enabled_edges and "E5_bll_to_healthcare" in enabled_edges:
-        undiscounted_healthcare = children_under6 * bll_increment_per_child * bll_to_healthcare_factor
-        healthcare_cost = undiscounted_healthcare * discount_factor
+        healthcare_cost = children_under6 * bll_increment_per_child * bll_to_healthcare_factor * discount_factor
     else:
         healthcare_cost = 0.0
 
-    # Path 4: E1 -> E6 (Cardiovascular/CKD - Secondary)
+    # Path 4: E1 -> E6
     if "E1_lsl_to_bll" in enabled_edges and "E6_adult_bll_to_cvd_ckd" in enabled_edges:
-        # HR Risk cost conversion
         cvd_cost_per_child = (
             max(0.0, (adult_bll_to_cvd_ckd_factor - 1.0))
             * (bll_increment_per_child / 5.7)
             * CVD_BASELINE_RISK
             * VSL_USD
         )
-        undiscounted_cvd = children_under6 * cvd_cost_per_child
-        cvd_cost = undiscounted_cvd * discount_factor
+        cvd_cost = children_under6 * cvd_cost_per_child * discount_factor
     else:
         cvd_cost = 0.0
 
-    # Path 5: E1 -> E7 (Crime - Contested)
+    # Path 5: E1 -> E7
     if "E1_lsl_to_bll" in enabled_edges and "E7_bll_to_crime" in enabled_edges:
-        # RR Risk cost conversion
         crime_cost_per_child = (
             max(0.0, (bll_to_crime_factor - 1.0))
             * bll_increment_per_child
             * CRIME_BASELINE_RATE
             * INCARCERATION_COST_USD
         )
-        undiscounted_crime = children_under6 * crime_cost_per_child
-        crime_cost = undiscounted_crime * discount_factor
+        crime_cost = children_under6 * crime_cost_per_child * discount_factor
     else:
         crime_cost = 0.0
 
-    # 7. Calculate Multiplier and Contributions
     total_downstream = earnings_cost + sped_cost + healthcare_cost + cvd_cost + crime_cost
 
-    if deferred_dollars > 0:
-        multiplier_point = total_downstream / deferred_dollars
-    else:
-        multiplier_point = 0.0
-
-    # Calculate individual edge contributions (attributing cost / deferred_dollars)
     contribs: dict[str, float] = {}
-
     if deferred_dollars > 0:
-        # Downstream leaf nodes
         if "E3_iq_to_earnings" in enabled_edges:
             contribs["E3_iq_to_earnings"] = earnings_cost / deferred_dollars
         if "E4_bll_to_sped" in enabled_edges:
@@ -202,15 +191,13 @@ def evaluate(
         if "E7_bll_to_crime" in enabled_edges:
             contribs["E7_bll_to_crime"] = crime_cost / deferred_dollars
 
-        # Intermediate nodes attribute the sum of paths flowing through them
         if "E1_lsl_to_bll" in enabled_edges:
             contribs["E1_lsl_to_bll"] = total_downstream / deferred_dollars
         if "E2_bll_to_iq" in enabled_edges:
             contribs["E2_bll_to_iq"] = earnings_cost / deferred_dollars
 
-    # 8. Return MultiplierResult
+    # 7. Return MultiplierResult
     from datetime import datetime, timezone
-    import uuid
 
     return MultiplierResult(
         run_id=scenario.id,
@@ -226,7 +213,7 @@ def evaluate(
         abstain=False,
         sobol=None,
         enabled_edges=list(enabled_edges),
-        catalog_version="07ae2eb70c80", # Using Chaitanya's commit SHA
+        catalog_version="07ae2eb70c80",
         seed=scenario.seed,
         created_at=datetime.now(timezone.utc).isoformat() + "Z"
     )
