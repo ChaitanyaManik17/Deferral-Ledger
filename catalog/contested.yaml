@@ -1,0 +1,97 @@
+# catalog/contested.yaml
+# Deferral Ledger — Contested-Edge Registry (C5)
+#
+# This registry defines which edges are "contested" (socially sensitive,
+# off by default), which are "secondary" (scientifically valid but long-horizon
+# or uncertain, off by default), and what the DEFAULT ENABLED SET is.
+#
+# SRS references: FR-DASH-3 (consent gate), FR-GOV-3 (consent logging), RAI-1.
+# The dashboard (Day 3+) reads this registry to populate the contested-edge
+# consent toggle and to ensure the default public view excludes these edges.
+
+# ── Default enabled edges (safe public default) ───────────────────────────────
+# These are the edges that are ON by default in every public/un-consented run.
+# Contested and secondary edges are excluded.
+
+default_enabled_edges:
+  - E0_cost_per_line       # replacement cost / line (deterministic driver)
+  - E1_lsl_to_bll          # LSL → BLL increment (wide prior, flagged)
+  - E2_bll_to_iq           # BLL → IQ loss (Lanphear 2005, confirmed)
+  - E3_iq_to_earnings      # IQ → lifetime earnings loss (Grosse 2021)
+  - E4_bll_to_sped         # BLL → special-education cost (Gould 2009)
+  - E5_bll_to_healthcare   # BLL → childhood healthcare / Medicaid (Trasande 2011)
+
+
+# ── Secondary edges (off by default, but not contested) ───────────────────────
+# These are scientifically well-grounded but involve long-horizon effects,
+# additional conversion assumptions (e.g., VSL), or secondary cascade paths.
+# A user may enable them with a clear explanation of the additional assumptions.
+
+secondary_edges:
+  - id: E6_adult_bll_to_cvd_ckd
+    status: secondary
+    default_enabled: false
+    rationale: >
+      Long-horizon effect requiring lifetime BLL accumulation. Requires explicit
+      VSL conversion assumption. Enabling substantially widens the multiplier
+      distribution. Users should understand and document the VSL assumption.
+    required_disclosure: >
+      "This estimate includes the cost of premature adult cardiovascular disease
+      and chronic kidney disease attributable to childhood lead exposure. The cost
+      is modelled via the EPA Value of Statistical Life ($13.1M, 2024 USD).
+      This is a long-horizon projection and should be interpreted cautiously."
+    srs_refs: [FR-DASH-3, FR-GOV-3]
+
+
+# ── Contested edges (off by default, requires explicit consent) ───────────────
+# These edges are socially sensitive. Enabling them in a public or official
+# analysis requires a deliberate, logged consent action by a named user.
+# The default public view MUST exclude them (SRS RAI-1).
+
+contested_edges:
+  - id: E7_bll_to_crime
+    status: contested
+    default_enabled: false
+    rationale: >
+      The causal pathway from childhood lead exposure to juvenile-justice
+      involvement is contested in the public-health literature and its inclusion
+      in cost analyses is stigmatizing for communities where LSLs are concentrated
+      (typically low-income, minority neighborhoods). Including this edge in a
+      default public analysis risks producing outputs that could be weaponized
+      against those same communities rather than used to advocate for their
+      infrastructure investment.
+    named_tradeoff: >
+      Excluding E7 understates the total long-run public cost of LSL deferral,
+      but prevents a stigmatizing framing. This is a deliberate responsible-AI
+      design choice (SRS RAI-1). Decision-makers who wish to include this edge
+      for a restricted internal analysis must explicitly consent and the consent
+      event is logged to the audit record.
+    consent_requirements:
+      - Explicit UI acknowledgment that the edge is contested
+      - Named user action (not a default toggle)
+      - Audit-log entry with: user_id, timestamp, rationale, run_id
+      - Results labeled "INCLUDES CONTESTED EDGE: lead → behavioral → crime"
+    required_disclosure: >
+      "This estimate includes the projected cost of juvenile-justice involvement
+      attributable to childhood lead exposure. This causal pathway is contested
+      in the scientific literature and is considered stigmatizing for affected
+      communities. This figure is provided for internal analysis only and should
+      NOT be used in public communications without cross-agency review."
+    srs_refs: [RAI-1, FR-DASH-3, FR-GOV-3, EV-5]
+    source: "Aizer & Currie 2017, NBER w23392"
+
+
+# ── Consent event schema (for the audit log) ─────────────────────────────────
+# When a contested or secondary edge is enabled, the following fields
+# MUST be written to the AuditRecord.contested_edges_enabled list.
+
+consent_event_schema:
+  required_fields:
+    - edge_id          # e.g., "E7_bll_to_crime"
+    - user_id          # authenticated user identifier
+    - timestamp        # ISO 8601
+    - run_id           # associated ScenarioRun.id
+    - acknowledged     # boolean: user confirmed the disclosure text
+  optional_fields:
+    - rationale        # user-supplied reason for enabling
+    - approval_ref     # optional reference to an internal approval record
