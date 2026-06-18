@@ -65,7 +65,7 @@ class TestCatalogValidation:
               enabled: true
         """)
         bad_file = tmp_path / "bad_edges.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
 
         with pytest.raises(CatalogValidationError, match="source"):
             load_edges(bad_file)
@@ -88,7 +88,7 @@ class TestCatalogValidation:
               enabled: true
         """)
         bad_file = tmp_path / "bad_edges.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
 
         with pytest.raises(CatalogValidationError, match="last_validated"):
             load_edges(bad_file)
@@ -106,7 +106,7 @@ class TestCatalogValidation:
               enabled: true
         """)
         bad_file = tmp_path / "bad_edges.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
 
         with pytest.raises(CatalogValidationError) as exc_info:
             load_edges(bad_file)
@@ -164,7 +164,7 @@ class TestCatalogValidation:
               enabled: true
         """)
         bad_file = tmp_path / "bad_normal.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
         with pytest.raises(CatalogValidationError):
             load_edges(bad_file)
 
@@ -183,7 +183,7 @@ class TestCatalogValidation:
               enabled: true
         """)
         bad_file = tmp_path / "bad_tri.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
         with pytest.raises(CatalogValidationError):
             load_edges(bad_file)
 
@@ -220,7 +220,7 @@ class TestCatalogValidation:
               enabled: true    # This must be rejected
         """)
         bad_file = tmp_path / "bad_contested.yaml"
-        bad_file.write_text(bad_yaml)
+        bad_file.write_text(bad_yaml, encoding="utf-8")
         with pytest.raises(CatalogValidationError):
             load_edges(bad_file)
 
@@ -296,7 +296,7 @@ class TestPriorPoint:
             **kwargs,
         }
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
+            mode="w", suffix=".yaml", delete=False, encoding="utf-8"
         ) as f:
             _yaml.dump([data], f)
             fname = f.name

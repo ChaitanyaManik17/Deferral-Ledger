@@ -1,0 +1,42 @@
+[
+  {
+    "geoid": "26049900001",
+    "lines_count": 736,
+    "children_under6": 125,
+    "svi_percentile": 0.5858,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900002",
+    "lines_count": 815,
+    "children_under6": 182,
+    "svi_percentile": 0.7303,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900003",
+    "lines_count": 1481,
+    "children_under6": 110,
+    "svi_percentile": 0.5393,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900004",
+    "lines_count": 955,
+    "children_under6": 193,
+    "svi_percentile": 0.7458,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900005",
+    "lines_count": 664,
+    "children_under6": 203,
+    "svi_percentile": 0.918,
+    "has_inventory_flag": true,
+    "synthetic": true
+  }
+]

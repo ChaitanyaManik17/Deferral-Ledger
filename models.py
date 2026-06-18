@@ -7,9 +7,7 @@ dag.py (Varun's engine), and the API layer.
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any, Literal
-
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -57,9 +55,9 @@ class EdgePrior(BaseModel):
         None, description="Human-readable description of the effect size"
     )
     units: str | None = Field(None, description="Units of the effect size")
-    last_validated: date = Field(
+    last_validated: str = Field(
         ...,
-        description="ISO date the edge was last checked against the source study",
+        description="ISO date string when the edge was last checked against the source study",
     )
 
     # ── Governance ────────────────────────────────────────────────────────────
@@ -122,16 +120,18 @@ class Tract(BaseModel):
     geoid: str = Field(..., description="11-digit census GEOID")
     lines_count: int = Field(..., ge=0, description="LSL count in this tract")
     children_under6: int = Field(..., ge=0, description="Children <6 years in tract")
-    svi_percentile: float | None = Field(
-        None, ge=0.0, le=1.0, description="CDC/ATSDR SVI percentile (0–1)"
-    )
+    svi_percentile: float = Field(..., ge=0.0, le=1.0, description="CDC/ATSDR SVI percentile (0–1)")
     has_inventory_flag: bool = Field(
         False,
         description="True if inventory is from a real reported source; False = synthetic",
     )
-    is_synthetic: bool = Field(
+    synthetic: bool = Field(
         True, description="True if tract data was synthetically generated"
     )
+
+    @property
+    def is_synthetic(self) -> bool:
+        return self.synthetic
 
 
 # ── ScenarioRun ───────────────────────────────────────────────────────────────
@@ -140,16 +140,14 @@ class ScenarioRun(BaseModel):
     """Input specification for a single deferral-vs-replace scenario."""
 
     id: str = Field(..., description="Unique run ID (UUID)")
-    tract_set: list[str] = Field(..., description="List of GEOIDs in scope")
+    tract_id: str = Field(..., description="GEOID of the census tract in scope")
     defer_years: int = Field(..., ge=0, description="Years of deferral (0 = replace now)")
-    budget: float | None = Field(None, ge=0, description="Available capital budget ($)")
+    discount_rate: float = Field(0.03, ge=0.0, le=0.20, description="Annual discount rate")
     enabled_edges: list[str] = Field(
         ..., description="List of EdgePrior.id values enabled for this run"
     )
     seed: int = Field(42, description="Random seed for reproducibility (C-5)")
-    n_draws: int = Field(10_000, ge=1_000, description="Number of Monte-Carlo draws")
-    discount_rate: float = Field(0.03, ge=0.0, le=0.20, description="Annual discount rate")
-    created_at: str = Field(..., description="ISO 8601 timestamp of run creation")
+    n_draws: int = Field(1, ge=1, description="Number of Monte-Carlo draws (1 for deterministic Day 1)")
 
 
 # ── MultiplierResult ──────────────────────────────────────────────────────────
@@ -158,24 +156,21 @@ class MultiplierResult(BaseModel):
     """Output distribution of the deferral multiplier M for a scenario."""
 
     run_id: str
-    mean: float
-    median: float
-    ci_low_90: float
-    ci_high_90: float
-    ci_low_95: float
-    ci_high_95: float
-    p_gt_1: float = Field(..., ge=0.0, le=1.0, description="P(M > 1)")
-    abstain: bool = Field(
-        False,
-        description=(
-            "True when 95% CI spans M<1; system must NOT output a "
-            "'must-fund-now' recommendation (SRS FR-ABS-1)"
-        ),
-    )
-    per_edge_sobol: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Sobol first-order + total indices per edge",
-    )
+    tract_id: str
+    defer_years: int
+    discount_rate: float
+    multiplier_point: float                         # Day 1 deterministic
+    per_edge_contribution: dict[str, float]         # Day 1
+    multiplier_mean: float | None = None            # Day 2 (MC)
+    ci90: tuple[float, float] | None = None
+    ci95: tuple[float, float] | None = None
+    p_gt_1: float | None = None
+    abstain: bool = False                           # Day 2 gate
+    sobol: dict | None = None                       # Day 2
+    enabled_edges: list[str] = []
+    catalog_version: str
+    seed: int
+    created_at: str
 
 
 # ── AuditRecord ───────────────────────────────────────────────────────────────

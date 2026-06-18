@@ -1,0 +1,31 @@
+{
+  "run_id": "8b51d382-7d12-4217-a068-98e6a24cd8c2",
+  "tract_id": "26049000100",
+  "defer_years": 5,
+  "discount_rate": 0.03,
+  "multiplier_point": 2.14,
+  "per_edge_contribution": {
+    "E1_lsl_to_bll": 0.45,
+    "E2_bll_to_iq": 0.82,
+    "E3_iq_to_earnings": 0.55,
+    "E4_bll_to_sped": 0.18,
+    "E5_bll_to_healthcare": 0.14
+  },
+  "multiplier_mean": null,
+  "ci90": null,
+  "ci95": null,
+  "p_gt_1": null,
+  "abstain": false,
+  "sobol": null,
+  "enabled_edges": [
+    "E0_cost_per_line",
+    "E1_lsl_to_bll",
+    "E2_bll_to_iq",
+    "E3_iq_to_earnings",
+    "E4_bll_to_sped",
+    "E5_bll_to_healthcare"
+  ],
+  "catalog_version": "07ae2eb70c80",
+  "seed": 42,
+  "created_at": "2026-06-18T04:40:00Z"
+}
