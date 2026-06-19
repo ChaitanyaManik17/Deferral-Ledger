@@ -73,7 +73,8 @@ Each edge is a **parametric probability distribution** sourced from named peer-r
 2. **Effects are modeled as linear in BLL.** The Lanphear 2005 slope is applied linearly for most calculations; the steeper low-level slope (<10 µg/dL) is available as a sensitivity scenario.
 3. **Discount rate defaults to 3%** (per SRS, following Grosse et al. 2021). Users can adjust.
 4. **Inventory counts are uncertain** — the EPA revised the national LSL count from ~9M to ~4M on 25 Nov 2025 [R1, R2]. This instability is surfaced as a first-class input, not silently imputed.
-5. **E1 (LSL→BLL) has a deliberately wide prior** — this is the hinge of the cascade and has the weakest empirical grounding at the tract level. Day-2 Sobol analysis is expected to show E1 dominates the spread.
+5. **E1 (LSL→BLL) has a deliberately wide prior** — this is the hinge of the cascade and has the weakest empirical grounding at the tract level. Day-2 Sobol analysis shows E1 dominates the spread, confirming that local water-lead measurements are the top priority to commission.
+6. **Capped Cumulative Exposure Model (Temporal Fix)** — We model BLL elevation as a cumulative exposure capped at 10.0 µg/dL per child to reflect the flattening of the dose-response relationship at higher blood lead levels and avoid double-counting lifetime earnings/IQ losses.
 
 ---
 

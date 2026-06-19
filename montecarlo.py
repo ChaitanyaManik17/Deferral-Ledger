@@ -1,55 +1,56 @@
 """
-montecarlo.py — Monte-Carlo simulation engine for Deferral Ledger.
+montecarlo.py — Monte Carlo engine for Deferral Ledger.
 
-Propagates uncertainty through the causal DAG to compute the deferral-multiplier
-posterior distribution and compares scenario options (V3, V4).
+Propagates edge uncertainties through the causal DAG to compute
+the deferral multiplier posterior distribution and scenario comparisons.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import uuid
 import numpy as np
 from models import Tract, ScenarioRun, MultiplierResult, EdgePrior
+from catalog import load_edges, get_catalog_version
 from priors import to_distribution, point
 from cascade import compute_multiplier
-import gates
-from catalog import get_catalog_version
+from gates import apply_abstention
 
 
 def run_monte_carlo(
     scenario: ScenarioRun,
     tract: Tract,
-    edges: list[EdgePrior],
-    n_draws: int = 10_000,
-    seed: int = 42
+    edges: list[EdgePrior] | None = None,
+    n_draws: int = 10000,
+    seed: int = 42,
 ) -> MultiplierResult:
     """
-    Run Monte-Carlo propagation of uncertainty for a tract and scenario.
-
-    Draws n_draws samples from each enabled edge prior, evaluates the cascade,
-    and returns a MultiplierResult with posterior statistics.
+    Run a Monte Carlo simulation for a given tract and scenario to compute M's posterior.
 
     Args:
-        scenario: Input ScenarioRun specification.
-        tract: Target census Tract context.
-        edges: List of loaded EdgePrior distributions.
-        n_draws: Number of Monte-Carlo draws (default: 10,000).
-        seed: Random seed for reproducibility (default: 42).
+        scenario: The ScenarioRun input specification.
+        tract:    The Census Tract.
+        edges:    List of EdgePrior objects (loaded if None).
+        n_draws:  Number of draws to sample.
+        seed:     RNG seed for reproducibility.
 
     Returns:
-        A MultiplierResult populated with mean, median, CIs, and P(M > 1).
+        A MultiplierResult populated with the posterior distribution statistics.
     """
-    # 1. Guarantee seed reproducibility (C-5)
+    # 1. Ensure edges are loaded
+    if edges is None:
+        edges = load_edges()
+
+    # 2. Set seed for reproducibility
     np.random.seed(seed)
 
-    # 2. Compute deterministic point estimate as a baseline reference
+    enabled_edges = set(scenario.enabled_edges)
+
+    # 3. Compute deterministic point estimate as a baseline reference
     point_params = {e.id: np.array([point(e)]) for e in edges}
     multiplier_point = float(compute_multiplier(point_params, tract, scenario)[0])
 
     # Early return for deterministic run
     if n_draws <= 1:
-        enabled_edges = set(scenario.enabled_edges)
         contribs: dict[str, float] = {}
 
         def get_path_point(path_edges: list[str]) -> float:
@@ -99,6 +100,7 @@ def run_monte_carlo(
             ci95=None,
             p_gt_1=None,
             abstain=False,
+            abstain_message=None,
             sobol=None,
             enabled_edges=list(enabled_edges),
             catalog_version=get_catalog_version(),
@@ -106,24 +108,24 @@ def run_monte_carlo(
             created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         )
 
-    # 3. Sample distributions for all edges in the catalog (Monte-Carlo)
+    # 4. Draw parameter samples for each enabled edge (Monte-Carlo)
     params: dict[str, np.ndarray] = {}
     for edge in edges:
-        sampler = to_distribution(edge)
-        # scipy frozen distribution rvs uses np.random state, so seed is respected
-        params[edge.id] = sampler(n_draws)
+        if edge.id in enabled_edges:
+            sampler = to_distribution(edge)
+            # scipy distributions use NumPy global state, which is seeded
+            params[edge.id] = sampler(n_draws)
 
-    # 4. Run vectorized MC multiplier calculation
-    multipliers = compute_multiplier(params, tract, scenario)
+    # 5. Evaluate cascade over all draws
+    M_draws = compute_multiplier(params, tract, scenario)
 
-    # Calculate statistics
-    multiplier_mean = float(np.mean(multipliers))
-    ci90 = (float(np.percentile(multipliers, 5.0)), float(np.percentile(multipliers, 95.0)))
-    ci95 = (float(np.percentile(multipliers, 2.5)), float(np.percentile(multipliers, 97.5)))
-    p_gt_1 = float(np.mean(multipliers > 1.0))
+    # 6. Calculate posterior statistics
+    mean_val = float(np.mean(M_draws))
+    ci90 = (float(np.percentile(M_draws, 5.0)), float(np.percentile(M_draws, 95.0)))
+    ci95 = (float(np.percentile(M_draws, 2.5)), float(np.percentile(M_draws, 97.5)))
+    p_gt_1 = float(np.mean(M_draws > 1.0))
 
     # Calculate per-edge contribution under MC (attributing mean cost contribution)
-    enabled_edges = set(scenario.enabled_edges)
     contribs: dict[str, float] = {}
 
     def get_path_mean(path_edges: list[str]) -> float:
@@ -159,9 +161,9 @@ def run_monte_carlo(
 
     # Intermediate E1 node (sum of all downstream)
     if "E1_lsl_to_bll" in enabled_edges:
-        contribs["E1_lsl_to_bll"] = multiplier_mean
+        contribs["E1_lsl_to_bll"] = mean_val
 
-    # 5. Build base result
+    # 7. Construct result
     result = MultiplierResult(
         run_id=scenario.id,
         tract_id=tract.geoid,
@@ -169,11 +171,12 @@ def run_monte_carlo(
         discount_rate=scenario.discount_rate,
         multiplier_point=round(multiplier_point, 4),
         per_edge_contribution={k: round(v, 4) for k, v in contribs.items()},
-        multiplier_mean=round(multiplier_mean, 4),
+        multiplier_mean=round(mean_val, 4),
         ci90=(round(ci90[0], 4), round(ci90[1], 4)),
         ci95=(round(ci95[0], 4), round(ci95[1], 4)),
         p_gt_1=round(p_gt_1, 4),
         abstain=False,
+        abstain_message=None,
         sobol=None,
         enabled_edges=list(enabled_edges),
         catalog_version=get_catalog_version(),
@@ -181,8 +184,8 @@ def run_monte_carlo(
         created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     )
 
-    # 6. Apply Chaitanya's abstention gate (C-DECISION)
-    result = gates.apply_abstention(result)
+    # 8. Apply abstention gate
+    result = apply_abstention(result)
 
     return result
 
@@ -190,71 +193,91 @@ def run_monte_carlo(
 def compare(
     scenario_defer: ScenarioRun,
     tract: Tract,
-    edges: list[EdgePrior],
-    n_draws: int = 10_000,
-    seed: int = 42
+    edges: list[EdgePrior] | None = None,
+    n_draws: int = 10000,
+    seed: int = 42,
 ) -> dict:
     """
-    Compare replacing now (defer_years=0) vs deferring replacement (defer_years=Δ).
-    Computes the present value cost delta distribution (FR-SCN-1).
+    Compare 'replace now' (defer_years=0) vs 'defer' scenarios.
+    Computes cost distributions and delta statistics in terms of present value (PV).
 
     Args:
-        scenario_defer: ScenarioRun specifying the deferral.
-        tract: Target census Tract context.
-        edges: List of loaded EdgePrior distributions.
-        n_draws: Number of Monte-Carlo draws (default: 10,000).
-        seed: Random seed for reproducibility (default: 42).
+        scenario_defer: Scenario specifying the deferral.
+        tract:          The Census Tract.
+        edges:          List of EdgePrior objects.
+        n_draws:        Number of draws.
+        seed:           RNG seed.
 
     Returns:
-        A dictionary containing cost delta statistics and scenario results.
+        A dictionary containing cost delta statistics.
     """
-    # 1. Guarantee seed reproducibility (C-5)
+    if edges is None:
+        edges = load_edges()
+
+    # 1. Run Monte Carlo for the defer scenario to get M
+    defer_result = run_monte_carlo(scenario_defer, tract, edges, n_draws, seed)
+
+    # 2. Draw cost parameters (E0_cost_per_line) to calculate actual costs
     np.random.seed(seed)
-
-    # 2. Sample distributions
-    params: dict[str, np.ndarray] = {}
+    cost_sampler = None
     for edge in edges:
-        params[edge.id] = to_distribution(edge)(n_draws)
+        if edge.id == "E0_cost_per_line":
+            cost_sampler = to_distribution(edge)
+            break
+    if cost_sampler is not None:
+        cost_per_line_draws = cost_sampler(n_draws)
+    else:
+        cost_per_line_draws = np.full(n_draws, 4700.0)
 
-    # 3. Create scenario for replacing now (defer_years = 0)
+    deferred_dollars = tract.lines_count * cost_per_line_draws
+
+    # 3. Retrieve M draws for defer scenario
+    enabled_edges = set(scenario_defer.enabled_edges)
+    params: dict[str, np.ndarray] = {}
+    np.random.seed(seed)
+    for edge in edges:
+        if edge.id in enabled_edges:
+            sampler = to_distribution(edge)
+            params[edge.id] = sampler(n_draws)
+
+    M_draws = compute_multiplier(params, tract, scenario_defer)
+
+    # 4. Calculate Net Present Value Cost Delta:
+    # Delta = Downstream Costs - Savings from deferring capital replacement
+    # Savings = replacement_cost * (1 - discount_factor)
+    discount_factor = (1.0 + scenario_defer.discount_rate) ** -scenario_defer.defer_years
+    savings = deferred_dollars * (1.0 - discount_factor)
+    downstream_costs = M_draws * deferred_dollars
+
+    cost_delta = downstream_costs - savings
+
+    mean_delta = float(np.mean(cost_delta))
+    ci90 = (float(np.percentile(cost_delta, 5.0)), float(np.percentile(cost_delta, 95.0)))
+    ci95 = (float(np.percentile(cost_delta, 2.5)), float(np.percentile(cost_delta, 97.5)))
+
+    # Create now scenario for result_now
+    import uuid
     scenario_now = scenario_defer.model_copy(update={
         "id": str(uuid.uuid4()),
         "defer_years": 0
     })
-
-    # Run MC for both scenarios
     result_now = run_monte_carlo(scenario_now, tract, edges, n_draws, seed)
-    result_defer = run_monte_carlo(scenario_defer, tract, edges, n_draws, seed)
-
-    # 4. Calculate PV cost delta distribution
-    # D_i = lines_count * cost_per_line_i
-    cost_per_line = params.get("E0_cost_per_line", np.full(n_draws, 4700.0))
-    deferred_dollars = tract.lines_count * cost_per_line
-
-    # Replace Now: cost is exactly deferred_dollars (spent today)
-    # Defer: cost is PV_downstream_cost + deferred_dollars * (1 + r)**-defer_years
-    # Wait, PV_downstream_cost is the numerator of result_defer multiplier
-    # So PV_downstream_cost = result_defer_multipliers * deferred_dollars
-    multipliers_defer = compute_multiplier(params, tract, scenario_defer)
-    pv_downstream = multipliers_defer * deferred_dollars
-
-    discount_factor = (1.0 + scenario_defer.discount_rate) ** -scenario_defer.defer_years
-    pv_defer_replacement = deferred_dollars * discount_factor
-
-    # PV Delta = Total Cost (Defer) - Total Cost (Replace Now)
-    pv_delta = pv_downstream + pv_defer_replacement - deferred_dollars
-
-    mean_delta = float(np.mean(pv_delta))
-    ci90 = (float(np.percentile(pv_delta, 5.0)), float(np.percentile(pv_delta, 95.0)))
-    ci95 = (float(np.percentile(pv_delta, 2.5)), float(np.percentile(pv_delta, 97.5)))
 
     return {
+        # Our keys (test_montecarlo.py expects these)
         "scenario_now": result_now.model_dump(),
-        "scenario_defer": result_defer.model_dump(),
+        "scenario_defer": defer_result.model_dump(),
         "cost_delta": {
             "mean": round(mean_delta, 2),
             "ci90": (round(ci90[0], 2), round(ci90[1], 2)),
             "ci95": (round(ci95[0], 2), round(ci95[1], 2)),
-            "p_gt_0": round(float(np.mean(pv_delta > 0.0)), 4)
-        }
+            "p_gt_0": round(float(np.mean(cost_delta > 0.0)), 4)
+        },
+        # Chaitanya's keys
+        "defer_result": defer_result,
+        "cost_delta_mean": mean_delta,
+        "cost_delta_median": float(np.median(cost_delta)),
+        "cost_delta_ci90": ci90,
+        "cost_delta_ci95": ci95,
+        "p_delta_gt_0": float(np.mean(cost_delta > 0.0))
     }
