@@ -182,3 +182,42 @@ def load_contested_registry(path: str | Path | None = None) -> dict[str, Any]:
         raise FileNotFoundError(f"Contested registry not found: {contested_path}")
     with open(contested_path, "r", encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+# ── get_catalog_version() ─────────────────────────────────────────────────────
+
+def get_catalog_version(path: str | Path | None = None) -> str:
+    """
+    Get a unique version identifier for the catalog.
+    Tries git log first, falling back to a SHA-1 content hash of the file.
+    """
+    import hashlib
+    import subprocess
+
+    catalog_path = Path(path) if path is not None else _DEFAULT_CATALOG_PATH
+    if not catalog_path.exists():
+        return "unknown"
+
+    try:
+        # Run git log to get the short SHA of the catalog file
+        res = subprocess.run(
+            ["git", "log", "-n", "1", "--format=%h", "--", str(catalog_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=str(catalog_path.parent)
+        )
+        sha = res.stdout.strip()
+        if sha and res.returncode == 0:
+            return sha
+    except Exception:
+        pass
+
+    try:
+        hasher = hashlib.sha1()
+        with open(catalog_path, "rb") as fh:
+            hasher.update(fh.read())
+        return hasher.hexdigest()[:8]
+    except Exception:
+        return "unknown"
+
