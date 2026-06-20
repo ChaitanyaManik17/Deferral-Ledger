@@ -60,3 +60,7 @@ data/cache/
 # Secrets
 *.pem
 *.key
+
+# Runtime SQLite
+data/audit.db
+*.db

@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from catalog import get_catalog_version, load_edges
 from data_ingest import load_county
 from models import AuditRecord, MultiplierResult, ScenarioRun, Tract
-from montecarlo import run_monte_carlo
+from montecarlo import run_monte_carlo, compare
 from synth import SYNTH_TRACTS_FILE
 
 app = FastAPI(
@@ -98,35 +98,85 @@ def get_catalog() -> list[dict[str, Any]]:
         raise HTTPException(status_code=500, detail=f"Failed to load catalog: {str(exc)}")
 
 
+def serialize_compare_result(res: dict) -> dict:
+    import numpy as np
+    out = {}
+    for k, v in res.items():
+        if isinstance(v, np.ndarray):
+            out[k] = [round(float(x), 2) for x in v]
+        elif k == "defer_result":
+            out[k] = v.model_dump()
+        elif isinstance(v, dict):
+            out[k] = serialize_compare_result(v)
+        elif isinstance(v, tuple):
+            out[k] = list(v)
+        else:
+            out[k] = v
+    return out
+
+
 @app.get("/sensitivity")
 def get_sensitivity(tract_id: str, defer_years: int = 5) -> dict[str, Any]:
     """
-    Exposes Sobol sensitivity indices for a tract run.
-    Wired to variance attribution coefficients (stubs for Day 2).
+    Exposes Sobol sensitivity indices and study recommendations for a tract run (FR-SENS-1).
     """
-    return {
-        "tract_id": tract_id,
-        "defer_years": defer_years,
-        "sobol_indices": {
-            "E1_lsl_to_bll": 0.58,
-            "E0_cost_per_line": 0.22,
-            "E2_bll_to_iq": 0.12,
-            "E3_iq_to_earnings": 0.05,
-            "E4_bll_to_sped": 0.02,
-            "E5_bll_to_healthcare": 0.01
+    import uuid
+    from sensitivity import sobol_indices, commission_study_recommendation
+
+    tract = get_tract_context(tract_id)
+    edges = load_edges()
+    enabled_edge_ids = [e.id for e in edges if e.enabled and not e.contested]
+
+    # Construct ScenarioRun config
+    scenario = ScenarioRun(
+        id=str(uuid.uuid4()),
+        tract_id=tract_id,
+        defer_years=defer_years,
+        discount_rate=0.03,
+        enabled_edges=enabled_edge_ids,
+        seed=42,
+        n_draws=1000
+    )
+
+    try:
+        # Compute Sobol indices
+        sobol_res = sobol_indices(scenario, tract, edges, n_base=128, seed=42)
+        recommendation = commission_study_recommendation(sobol_res, edges)
+        return {
+            "tract_id": tract_id,
+            "defer_years": defer_years,
+            "sobol_indices": sobol_res,
+            "recommendation": recommendation
         }
-    }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Sensitivity analysis failed: {str(exc)}")
+
+
+@app.post("/compare")
+def post_compare(scenario: ScenarioRun) -> dict[str, Any]:
+    """
+    Compare replacing now vs deferring replacement for a tract and scenario (FR-SCN-1).
+    """
+    tract = get_tract_context(scenario.tract_id)
+    edges = load_edges()
+    try:
+        res = compare(
+            scenario_defer=scenario,
+            tract=tract,
+            edges=edges,
+            n_draws=scenario.n_draws,
+            seed=scenario.seed
+        )
+        return serialize_compare_result(res)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(exc)}")
 
 
 @app.get("/audit/{run_id}", response_model=AuditRecord)
 def get_audit_record(run_id: str) -> AuditRecord:
-    """Return an immutable audit record for the specified run ID (SRS FR-GOV-2)."""
-    return AuditRecord(
-        run_id=run_id,
-        user="system_operator",
-        inputs_snapshot_ref="data/synthetic/synthetic_tracts.json",
-        catalog_version=get_catalog_version(),
-        overrides=[],
-        contested_edges_enabled=[],
-        timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z")
-    )
+    """Return an immutable audit record from the database for the specified run ID (SRS FR-GOV-2)."""
+    from audit import get_audit_record as read_audit
+    record = read_audit(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"Audit record '{run_id}' not found.")
+    return record

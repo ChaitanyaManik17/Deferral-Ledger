@@ -90,7 +90,7 @@ def run_monte_carlo(
         if "E1_lsl_to_bll" in enabled_edges:
             contribs["E1_lsl_to_bll"] = multiplier_point
 
-        return MultiplierResult(
+        result = MultiplierResult(
             run_id=scenario.id,
             tract_id=tract.geoid,
             defer_years=scenario.defer_years,
@@ -101,6 +101,7 @@ def run_monte_carlo(
             ci90=None,
             ci95=None,
             p_gt_1=None,
+            mc_draws=None,
             abstain=False,
             abstain_message=None,
             sobol=None,
@@ -109,6 +110,26 @@ def run_monte_carlo(
             seed=seed,
             created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z")
         )
+        try:
+            from audit import save_audit_record, log_consent_event
+            from models import AuditRecord
+            contested_enabled = [e for e in ["E6_adult_bll_to_cvd_ckd", "E7_bll_to_crime"] if e in enabled_edges]
+            audit_rec = AuditRecord(
+                run_id=result.run_id,
+                user="system_operator",
+                inputs_snapshot_ref="data/synthetic/synthetic_tracts.json",
+                catalog_version=result.catalog_version,
+                overrides=[],
+                contested_edges_enabled=contested_enabled,
+                timestamp=result.created_at
+            )
+            save_audit_record(audit_rec)
+            for edge_id in contested_enabled:
+                log_consent_event(user="system_operator", edge_id=edge_id, action="enable", details=f"Deterministic run {result.run_id} executed.")
+        except Exception:
+            pass
+        return result
+
 
     # 4. Draw parameter samples for each enabled edge (Monte-Carlo)
     params: dict[str, np.ndarray] = {}
@@ -177,6 +198,7 @@ def run_monte_carlo(
         ci90=(round(ci90[0], 4), round(ci90[1], 4)),
         ci95=(round(ci95[0], 4), round(ci95[1], 4)),
         p_gt_1=round(p_gt_1, 4),
+        mc_draws=[round(float(x), 4) for x in M_draws],
         abstain=False,
         abstain_message=None,
         sobol=None,
@@ -188,6 +210,26 @@ def run_monte_carlo(
 
     # 8. Apply abstention gate
     result = apply_abstention(result)
+
+    # 9. Save audit record and log consent events
+    try:
+        from audit import save_audit_record, log_consent_event
+        from models import AuditRecord
+        contested_enabled = [e for e in ["E6_adult_bll_to_cvd_ckd", "E7_bll_to_crime"] if e in enabled_edges]
+        audit_rec = AuditRecord(
+            run_id=result.run_id,
+            user="system_operator",
+            inputs_snapshot_ref="data/synthetic/synthetic_tracts.json",
+            catalog_version=result.catalog_version,
+            overrides=[],
+            contested_edges_enabled=contested_enabled,
+            timestamp=result.created_at
+        )
+        save_audit_record(audit_rec)
+        for edge_id in contested_enabled:
+            log_consent_event(user="system_operator", edge_id=edge_id, action="enable", details=f"Scenario run ID {result.run_id} executed.")
+    except Exception:
+        pass
 
     return result
 

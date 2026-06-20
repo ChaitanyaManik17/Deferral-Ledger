@@ -165,6 +165,7 @@ class MultiplierResult(BaseModel):
     ci90: tuple[float, float] | None = None
     ci95: tuple[float, float] | None = None
     p_gt_1: float | None = None
+    mc_draws: list[float] | None = None             # Day 3 draws serialization
     abstain: bool = False                           # Day 2 gate
     abstain_message: str | None = None              # Explanation for abstention
     sobol: dict | None = None                       # Day 2
