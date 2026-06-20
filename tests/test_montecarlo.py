@@ -8,11 +8,11 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from models import Tract, ScenarioRun
-from catalog import load_edges
-from cascade import compute_multiplier
-from montecarlo import run_monte_carlo, compare
 from api import app
+from cascade import compute_multiplier
+from catalog import load_edges
+from models import ScenarioRun, Tract
+from montecarlo import compare, run_monte_carlo
 
 client = TestClient(app)
 

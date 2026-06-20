@@ -1,0 +1,82 @@
+[
+  {
+    "geoid": "IND_DEL_1001",
+    "lines_count": 876,
+    "children_under6": 397,
+    "svi_percentile": 0.9121,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1002",
+    "lines_count": 312,
+    "children_under6": 332,
+    "svi_percentile": 0.9683,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1003",
+    "lines_count": 720,
+    "children_under6": 354,
+    "svi_percentile": 0.7162,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1004",
+    "lines_count": 994,
+    "children_under6": 238,
+    "svi_percentile": 0.8091,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1005",
+    "lines_count": 916,
+    "children_under6": 335,
+    "svi_percentile": 0.7662,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1006",
+    "lines_count": 1019,
+    "children_under6": 268,
+    "svi_percentile": 0.8032,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1007",
+    "lines_count": 629,
+    "children_under6": 220,
+    "svi_percentile": 0.9287,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1008",
+    "lines_count": 711,
+    "children_under6": 492,
+    "svi_percentile": 0.724,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1009",
+    "lines_count": 903,
+    "children_under6": 423,
+    "svi_percentile": 0.8575,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "IND_DEL_1010",
+    "lines_count": 671,
+    "children_under6": 405,
+    "svi_percentile": 0.6778,
+    "has_inventory_flag": true,
+    "synthetic": true
+  }
+]

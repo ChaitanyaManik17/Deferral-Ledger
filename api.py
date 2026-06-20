@@ -8,18 +8,17 @@ and retrieve audit trails (V5).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
-from models import ScenarioRun, MultiplierResult, AuditRecord, Tract
-from catalog import load_edges, get_catalog_version
+from catalog import get_catalog_version, load_edges
 from data_ingest import load_county
-from synth import generate_tracts, SYNTH_TRACTS_FILE
-from montecarlo import run_monte_carlo, compare
+from models import AuditRecord, MultiplierResult, ScenarioRun, Tract
+from montecarlo import run_monte_carlo
+from synth import SYNTH_TRACTS_FILE
 
 app = FastAPI(
     title="DEFERRAL LEDGER API",
@@ -41,7 +40,7 @@ def get_tract_context(tract_id: str) -> Tract:
     """Helper to locate tract data in synthetic or raw cache."""
     # Try loading from synthetic file first
     if SYNTH_TRACTS_FILE.exists():
-        with open(SYNTH_TRACTS_FILE, "r", encoding="utf-8") as fh:
+        with open(SYNTH_TRACTS_FILE, encoding="utf-8") as fh:
             tracts_data = json.load(fh)
             for td in tracts_data:
                 if td["geoid"] == tract_id:
@@ -129,5 +128,5 @@ def get_audit_record(run_id: str) -> AuditRecord:
         catalog_version=get_catalog_version(),
         overrides=[],
         contested_edges_enabled=[],
-        timestamp=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        timestamp=datetime.now(UTC).isoformat().replace("+00:00", "Z")
     )

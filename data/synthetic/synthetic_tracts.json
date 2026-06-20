@@ -1,41 +1,81 @@
 [
   {
     "geoid": "26049900001",
-    "lines_count": 736,
-    "children_under6": 125,
-    "svi_percentile": 0.5858,
-    "has_inventory_flag": true,
+    "lines_count": 1321,
+    "children_under6": 189,
+    "svi_percentile": 0.8535,
+    "has_inventory_flag": false,
     "synthetic": true
   },
   {
     "geoid": "26049900002",
-    "lines_count": 815,
-    "children_under6": 182,
-    "svi_percentile": 0.7303,
+    "lines_count": 419,
+    "children_under6": 163,
+    "svi_percentile": 0.9085,
     "has_inventory_flag": false,
     "synthetic": true
   },
   {
     "geoid": "26049900003",
-    "lines_count": 1481,
-    "children_under6": 110,
-    "svi_percentile": 0.5393,
-    "has_inventory_flag": false,
-    "synthetic": true
-  },
-  {
-    "geoid": "26049900004",
-    "lines_count": 955,
-    "children_under6": 193,
-    "svi_percentile": 0.7458,
+    "lines_count": 1073,
+    "children_under6": 172,
+    "svi_percentile": 0.6617,
     "has_inventory_flag": true,
     "synthetic": true
   },
   {
+    "geoid": "26049900004",
+    "lines_count": 1511,
+    "children_under6": 125,
+    "svi_percentile": 0.7526,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
     "geoid": "26049900005",
-    "lines_count": 664,
-    "children_under6": 203,
-    "svi_percentile": 0.918,
+    "lines_count": 1387,
+    "children_under6": 164,
+    "svi_percentile": 0.7107,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900006",
+    "lines_count": 1551,
+    "children_under6": 137,
+    "svi_percentile": 0.7469,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900007",
+    "lines_count": 927,
+    "children_under6": 118,
+    "svi_percentile": 0.8698,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900008",
+    "lines_count": 1059,
+    "children_under6": 227,
+    "svi_percentile": 0.6694,
+    "has_inventory_flag": true,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900009",
+    "lines_count": 1365,
+    "children_under6": 199,
+    "svi_percentile": 0.8,
+    "has_inventory_flag": false,
+    "synthetic": true
+  },
+  {
+    "geoid": "26049900010",
+    "lines_count": 995,
+    "children_under6": 192,
+    "svi_percentile": 0.6241,
     "has_inventory_flag": true,
     "synthetic": true
   }

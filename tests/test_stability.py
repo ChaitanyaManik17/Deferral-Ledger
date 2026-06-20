@@ -8,9 +8,11 @@ the top Sobol sensitivity driver remains stable.
 from __future__ import annotations
 
 import copy
+
 import pytest
-from models import Tract, ScenarioRun, EdgePrior
+
 from catalog import load_edges
+from models import EdgePrior, ScenarioRun, Tract
 from sensitivity import sobol_indices
 
 
@@ -46,7 +48,6 @@ def test_sobol_ranking_stability_under_perturbations(base_tract, sample_catalog)
     # 1. Run baseline Sobol analysis — discover actual top driver (data-driven, not hardcoded)
     baseline_sobol = sobol_indices(scenario, base_tract, sample_catalog, n_base=256, seed=42)
     baseline_top_driver = list(baseline_sobol.keys())[0]
-    baseline_top_2 = list(baseline_sobol.keys())[:2]
 
     # Verify the baseline has a clear dominant driver (ST > 0.3)
     assert baseline_sobol[baseline_top_driver]["ST"] > 0.3, (

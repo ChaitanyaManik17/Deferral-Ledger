@@ -8,7 +8,8 @@ draws as arrays and performing vectorized calculations.
 from __future__ import annotations
 
 import numpy as np
-from models import Tract, ScenarioRun
+
+from models import ScenarioRun, Tract
 
 # ── Economic & Epidemiological Conversion Constants ──────────────────────────
 VSL_USD = 13_100_000.0           # Value of Statistical Life (EPA 2024)

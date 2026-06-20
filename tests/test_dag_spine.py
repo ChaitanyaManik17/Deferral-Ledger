@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
+
 import pytest
-from models import Tract, ScenarioRun, EdgePrior
+
 from dag import build_dag, evaluate
+from models import EdgePrior, ScenarioRun, Tract
 
 
 @pytest.fixture

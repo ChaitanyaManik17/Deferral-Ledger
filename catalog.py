@@ -13,7 +13,6 @@ get_edge(id, edges)       → EdgePrior | None
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +20,6 @@ import yaml
 from pydantic import ValidationError
 
 from models import EdgePrior
-
 
 # ── Default path to the catalog ───────────────────────────────────────────────
 
@@ -72,7 +70,7 @@ def load_edges(path: str | Path | None = None) -> list[EdgePrior]:
     if not catalog_path.exists():
         raise FileNotFoundError(f"Catalog not found: {catalog_path}")
 
-    with open(catalog_path, "r", encoding="utf-8") as fh:
+    with open(catalog_path, encoding="utf-8") as fh:
         raw: list[dict[str, Any]] = yaml.safe_load(fh)
 
     if not isinstance(raw, list):
@@ -107,7 +105,7 @@ def load_edges(path: str | Path | None = None) -> list[EdgePrior]:
             edges.append(edge)
         except ValidationError as exc:
             for err in exc.errors():
-                loc = " → ".join(str(l) for l in err["loc"])
+                loc = " → ".join(str(loc_part) for loc_part in err["loc"])
                 errors.append(f"Edge '{edge_id}' [{loc}]: {err['msg']}")
 
     if errors:
@@ -180,7 +178,7 @@ def load_contested_registry(path: str | Path | None = None) -> dict[str, Any]:
     contested_path = Path(path) if path is not None else _DEFAULT_CONTESTED_PATH
     if not contested_path.exists():
         raise FileNotFoundError(f"Contested registry not found: {contested_path}")
-    with open(contested_path, "r", encoding="utf-8") as fh:
+    with open(contested_path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
 
 
@@ -202,8 +200,7 @@ def get_catalog_version(path: str | Path | None = None) -> str:
         # Run git log to get the short SHA of the catalog file
         res = subprocess.run(
             ["git", "log", "-n", "1", "--format=%h", "--", str(catalog_path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             cwd=str(catalog_path.parent)
         )

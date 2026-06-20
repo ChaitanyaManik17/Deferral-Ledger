@@ -7,13 +7,15 @@ the deferral multiplier posterior distribution and scenario comparisons.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 import numpy as np
-from models import Tract, ScenarioRun, MultiplierResult, EdgePrior
-from catalog import load_edges, get_catalog_version
-from priors import to_distribution, point
+
 from cascade import compute_multiplier
+from catalog import get_catalog_version, load_edges
 from gates import apply_abstention
+from models import EdgePrior, MultiplierResult, ScenarioRun, Tract
+from priors import point, to_distribution
 
 
 def run_monte_carlo(
@@ -105,7 +107,7 @@ def run_monte_carlo(
             enabled_edges=list(enabled_edges),
             catalog_version=get_catalog_version(),
             seed=seed,
-            created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z")
         )
 
     # 4. Draw parameter samples for each enabled edge (Monte-Carlo)
@@ -181,7 +183,7 @@ def run_monte_carlo(
         enabled_edges=list(enabled_edges),
         catalog_version=get_catalog_version(),
         seed=seed,
-        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z")
     )
 
     # 8. Apply abstention gate
@@ -279,5 +281,8 @@ def compare(
         "cost_delta_median": float(np.median(cost_delta)),
         "cost_delta_ci90": ci90,
         "cost_delta_ci95": ci95,
-        "p_delta_gt_0": float(np.mean(cost_delta > 0.0))
+        "p_delta_gt_0": float(np.mean(cost_delta > 0.0)),
+        "cost_now_draws": deferred_dollars.tolist() if hasattr(deferred_dollars, "tolist") else list(deferred_dollars),
+        "cost_defer_draws": (deferred_dollars * discount_factor + M_draws * deferred_dollars).tolist() if hasattr(M_draws, "tolist") else list(deferred_dollars * discount_factor + M_draws * deferred_dollars),
+        "cost_delta_draws": cost_delta.tolist() if hasattr(cost_delta, "tolist") else list(cost_delta)
     }

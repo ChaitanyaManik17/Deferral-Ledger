@@ -134,4 +134,22 @@ The system **MUST NOT** output a "must-fund-now" recommendation when:
 
 ---
 
-*This model card was generated as part of the Day 1 deliverable (C6) per `DAY1_CHAITANYA_TASKS.md`. It will be updated as the system evolves through Days 2–7.*
+## 10. In-App Lifecycle Copy & Warning Text Reference
+
+To ensure consistent wording across developer implementations and the UI dashboard surfaces, the following standardized text blocks are established:
+
+### 10.1 Prior Staleness Flag (LC-1)
+> **WARNING:** The parameter prior for edge `{edge_id}` is stale (last validated on `{last_validated}`). It has exceeded the maximum safety window of 1 year. Please review and recalibrate this prior against the latest epidemiological literature.
+
+### 10.2 Upstream Recalibration Trigger (LC-2)
+> **UPSTREAM RECALIBRATION ALERT:** The baseline LSL inventory count for this tract is set to a historical estimate. A major national inventory revision (EPA Nov 2025 update from 9M to 4M lines) indicates these counts are unstable. A local physical/engineering audit is required to recalibrate the cascade.
+
+### 10.3 Drift Monitor Alert (LC-3)
+> **DRIFT MONITOR ALERT:** The observed tract-level childhood blood lead levels (BLL) have diverged from the model's predicted BLL trend by more than the 25% safety threshold. Recalibration of the tract-specific exposure priors is required.
+
+### 10.4 Contested Edge Consent Text (RAI-1)
+> **CONTESTED-EDGE GOVERNANCE GATEWAY:** You are enabling a contested, socially-sensitive edge (`{edge_id}`). While this may capture downstream costs (e.g. lead-crime links), neighborhood-level criminal justice indicators carry a high risk of deficit-framing and neighborhood stigmatisation. By checking this box, you confirm explicit administrative consent. This event (user, timestamp, and active edges) will be logged to the immutable ledger.
+
+---
+
+*This model card was updated on Day 3 to finalize key assumptions, non-goals, abstention rules, and lifecycle/warning reference copy.*

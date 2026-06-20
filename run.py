@@ -11,13 +11,14 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from pathlib import Path
-from models import ScenarioRun, Tract
-from synth import generate_tracts, SYNTH_TRACTS_FILE
-from data_ingest import load_county
-from dag import evaluate
+
 from catalog import default_enabled_edges, load_edges
+from dag import evaluate
+from data_ingest import load_county
+from models import ScenarioRun, Tract
 from montecarlo import run_monte_carlo
+from synth import SYNTH_TRACTS_FILE, generate_tracts
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -66,7 +67,7 @@ def main() -> None:
         # Generate 10 synthetic tracts if they don't exist
         tracts = generate_tracts(10, args.seed)
     else:
-        with open(SYNTH_TRACTS_FILE, "r", encoding="utf-8") as fh:
+        with open(SYNTH_TRACTS_FILE, encoding="utf-8") as fh:
             data = json.load(fh)
             tracts = [Tract(**d) for d in data]
 
@@ -98,7 +99,7 @@ def main() -> None:
                         has_inventory_flag=bool(row["has_inventory_flag"]),
                         synthetic=True
                     )
-            except Exception as e:
+            except Exception:
                 pass
 
     if target_tract is None:

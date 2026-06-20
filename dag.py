@@ -7,13 +7,16 @@ and implements the deterministic single-draw cascade evaluator (V5).
 
 from __future__ import annotations
 
+from datetime import UTC
 from pathlib import Path
+
 import networkx as nx
 import numpy as np
-from models import Tract, ScenarioRun, MultiplierResult, EdgePrior
-from catalog import load_edges, get_edge, get_catalog_version
-from priors import point
+
 from cascade import compute_multiplier
+from catalog import get_catalog_version, load_edges
+from models import EdgePrior, MultiplierResult, ScenarioRun, Tract
+from priors import point
 
 
 def build_dag(edges: list[EdgePrior]) -> nx.DiGraph:
@@ -131,7 +134,7 @@ def evaluate(
         contribs["E1_lsl_to_bll"] = multiplier_point
 
     # 6. Return MultiplierResult
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return MultiplierResult(
         run_id=scenario.id,
@@ -149,5 +152,5 @@ def evaluate(
         enabled_edges=list(enabled_edges),
         catalog_version=get_catalog_version(),
         seed=scenario.seed,
-        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z")
     )

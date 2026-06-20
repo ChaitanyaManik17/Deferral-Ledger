@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from models import Tract, ScenarioRun, EdgePrior
+
+from models import EdgePrior, ScenarioRun, Tract
 from montecarlo import run_monte_carlo
-from sensitivity import sobol_indices, commission_study_recommendation
-from gates import apply_abstention
+from sensitivity import commission_study_recommendation, sobol_indices
 
 
 @pytest.fixture
@@ -85,15 +85,14 @@ def test_standard_error_shrinks_with_n_draws(base_tract, sample_catalog) -> None
     # We draw samples and compute the standard error of the mean (std / sqrt(N))
     # Draw 1000
     np.random.seed(42)
-    res_1000 = run_monte_carlo(scenario, base_tract, sample_catalog, n_draws=1000)
+    _ = run_monte_carlo(scenario, base_tract, sample_catalog, n_draws=1000)
     
     # Let's verify standard error directly.
     # Since we can't easily fetch the raw draws from MultiplierResult, we can reconstruct the standard error.
     # Standard error of the mean = standard_deviation / sqrt(N)
     # Let's run a manual check or verify standard deviation is stable while sqrt(N) scales down the error.
-    from catalog import default_enabled_edges
-    from priors import to_distribution
     from cascade import compute_multiplier
+    from priors import to_distribution
 
     enabled_ids = scenario.enabled_edges
     params_1000 = {}
