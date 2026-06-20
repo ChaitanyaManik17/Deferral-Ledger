@@ -8,8 +8,8 @@ dag.py (Varun's engine), and the API layer.
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import BaseModel, Field, field_validator, model_validator
 
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ── Supported distribution types ──────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ class EdgePrior(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def _validate_params_for_dist(self) -> "EdgePrior":
+    def _validate_params_for_dist(self) -> EdgePrior:
         """Check that params contain the required keys for the declared dist_type."""
         required: dict[str, set[str]] = {
             "normal": {"mean", "sd"},
@@ -102,7 +102,7 @@ class EdgePrior(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _contested_edges_disabled_by_default(self) -> "EdgePrior":
+    def _contested_edges_disabled_by_default(self) -> EdgePrior:
         """Contested edges must be disabled by default (SRS RAI-1)."""
         if self.contested and self.enabled:
             raise ValueError(

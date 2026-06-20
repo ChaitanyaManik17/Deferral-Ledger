@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import math
 from typing import Any
+
 import numpy as np
-from SALib.sample import saltelli
 from SALib.analyze import sobol
 
-from models import Tract, ScenarioRun, EdgePrior
-from catalog import load_edges
-from priors import point
 from cascade import compute_multiplier
+from catalog import load_edges
+from models import EdgePrior, ScenarioRun, Tract
+from priors import point
 
 
 def get_edge_bounds(edge: EdgePrior) -> list[float]:

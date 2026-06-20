@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 # ── point() ───────────────────────────────────────────────────────────────────
 
-def point(edge: "EdgePrior") -> float:
+def point(edge: EdgePrior) -> float:
     """
     Return the single deterministic central value for the edge prior.
 
@@ -67,7 +67,7 @@ def point(edge: "EdgePrior") -> float:
 
 # ── to_distribution() ─────────────────────────────────────────────────────────
 
-def to_distribution(edge: "EdgePrior") -> Callable[[int], np.ndarray]:
+def to_distribution(edge: EdgePrior) -> Callable[[int], np.ndarray]:
     """
     Return a sampler function for the edge prior.
 

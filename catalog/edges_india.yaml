@@ -1,0 +1,183 @@
+# catalog/edges_india.yaml
+# Deferral Ledger — India-Specific Edge-Prior Catalog (C-CAT-INDIA)
+#
+# Calibrated to India demographic and economic estimates (USD comparisons)
+
+# E0  —  Replacement cost per connection line
+- id: E0_cost_per_line
+  from_node: defer_decision
+  to_node: deferred_dollars
+  dist_type: triangular
+  params:
+    low: 200.0
+    mode: 600.0
+    high: 1200.0
+  point_estimate: 600.0
+  ci_low: 200.0
+  ci_high: 1200.0
+  source: >
+    Synthetic India Prior: Calibrated to municipal water service network connection
+    remediation and labor cost estimates in urban South Asia (2026).
+  effect_size: "$600 average replacement cost per connection line (2026 USD)"
+  units: "USD per service line"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Lower mode reflects lower local excavation and labor costs in India.
+
+# E1  —  LSL presence → sustained BLL increment (µg/dL) while LSL in ground
+- id: E1_lsl_to_bll
+  from_node: continued_exposure_person_years
+  to_node: bll_increment_ugdl
+  dist_type: triangular
+  params:
+    low: 1.0
+    mode: 3.5
+    high: 8.0
+  point_estimate: 3.5
+  ci_low: 1.0
+  ci_high: 8.0
+  source: >
+    Synthetic India Prior: Adjusted for nutritional co-factors (calcium/iron deficiency)
+    which double gastrointestinal lead absorption, and higher ambient co-exposures.
+  effect_size: "~+3.5 µg/dL BLL increment (range 1.0–8.0) while LSL present"
+  units: "µg/dL blood lead per year of LSL exposure"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Higher mode and bounds reflect elevated risk of lead uptake under South Asian
+    nutritional profiles.
+
+# E2  —  BLL (µg/dL) → IQ loss (IQ points)
+- id: E2_bll_to_iq
+  from_node: bll_increment_ugdl
+  to_node: iq_loss_points
+  dist_type: normal
+  params:
+    mean: -0.87
+    sd: 0.14
+  point_estimate: -0.87
+  ci_low: -1.10
+  ci_high: -0.64
+  source: >
+    Lanphear BP et al., 2005 pooled international analysis (retained for global
+    consistency of biological response).
+  effect_size: "−0.87 IQ pts per 1 µg/dL BLL"
+  units: "IQ points per µg/dL BLL"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Retained standard international slope for comparability.
+
+# E3  —  IQ loss → lifetime earnings loss ($)
+- id: E3_iq_to_earnings
+  from_node: iq_loss_points
+  to_node: lifetime_earnings_loss_dollars
+  dist_type: uniform
+  params:
+    low: 600.0
+    high: 1800.0
+  point_estimate: 1200.0
+  ci_low: 600.0
+  ci_high: 1800.0
+  source: >
+    Synthetic India Prior: Calibrated to lifetime earnings projections in India
+    adjusted for purchasing power parity (PPP).
+  effect_size: "$600–$1,800 per IQ point lost (3% discount rate, local PPP USD)"
+  units: "USD per IQ point (present value, 3% discount)"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Adjusted down to match lifetime gross earnings scale in India.
+
+# E4  —  BLL → special-education placement cost ($)
+- id: E4_bll_to_sped
+  from_node: bll_increment_ugdl
+  to_node: special_education_cost_dollars
+  dist_type: triangular
+  params:
+    low: 400.0
+    mode: 1000.0
+    high: 2500.0
+  point_estimate: 1000.0
+  ci_low: 400.0
+  ci_high: 2500.0
+  source: >
+    Synthetic India Prior: Calibrated to municipal primary education supportive
+    service cost ranges in South Asia.
+  effect_size: "$1,000 average special-ed support cost (range $400–$2,500)"
+  units: "USD per child (present value)"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Reflects local municipal budget allocations.
+
+# E5  —  BLL → childhood healthcare / Medicaid cost ($)
+- id: E5_bll_to_healthcare
+  from_node: bll_increment_ugdl
+  to_node: childhood_healthcare_cost_dollars
+  dist_type: triangular
+  params:
+    low: 300.0
+    mode: 800.0
+    high: 2000.0
+  point_estimate: 800.0
+  ci_low: 300.0
+  ci_high: 2000.0
+  source: >
+    Synthetic India Prior: Calibrated to public healthcare and out-of-pocket medical
+    treatment costs in South Asia.
+  effect_size: "$800 average childhood healthcare cost (range $300–$2,000)"
+  units: "USD per child (present value)"
+  contested: false
+  enabled: true
+  last_validated: "2026-06-19"
+  notes: >
+    Reflects local cost of pediatric services.
+
+# E6  —  Adult cumulative BLL → cardiovascular / CKD mortality & morbidity cost
+- id: E6_adult_bll_to_cvd_ckd
+  from_node: bll_increment_ugdl
+  to_node: adult_cvd_ckd_cost_dollars
+  dist_type: lognormal
+  params:
+    mu: 0.5306
+    sigma: 0.1627
+  point_estimate: 1.70
+  ci_low: 1.30
+  ci_high: 2.22
+  source: >
+    Lanphear BP et al., 2018 (retained for hazard ratio).
+  effect_size: "HR 1.70 (95% CI 1.30–2.22) for CVD mortality"
+  units: "Hazard ratio (dimensionless)"
+  contested: false
+  enabled: false
+  last_validated: "2026-06-19"
+  notes: >
+    Secondary edge, off by default.
+
+# E7  —  BLL → behavioral / ADHD → juvenile-justice / crime cost
+- id: E7_bll_to_crime
+  from_node: bll_increment_ugdl
+  to_node: juvenile_justice_crime_cost_dollars
+  dist_type: lognormal
+  params:
+    mu: 0.1398
+    sigma: 0.0584
+  point_estimate: 1.15
+  ci_low: 1.05
+  ci_high: 1.26
+  source: >
+    Aizer & Currie 2017 (retained for relative risk ratio).
+  effect_size: "RR 1.15 (95% CI 1.05–1.26) for juvenile detention"
+  units: "Risk ratio (dimensionless)"
+  contested: true
+  enabled: false
+  last_validated: "2026-06-19"
+  notes: >
+    Contested edge, off by default.

@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import numpy as np
+
+from data_ingest import DEMO_COUNTY_FIPS, load_county
 from models import Tract
-from data_ingest import load_county, DEMO_COUNTY_FIPS
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -96,3 +98,48 @@ def generate_tracts(n: int = 10, seed: int = 42) -> list[Tract]:
         json.dump(metadata, fh, indent=2)
 
     return tracts
+
+
+def generate_india_tracts(n: int = 10, seed: int = 42) -> list[Tract]:
+    """
+    Generate reproducible, calibrated synthetic census tracts for India.
+    Calibrated to South Asian urban demographics (higher child density, lower line count).
+    """
+    # Create output directory
+    SYNTH_DIR.mkdir(parents=True, exist_ok=True)
+    rng = np.random.default_rng(seed)
+
+    # Calibration ranges for India (Delhi / urban tracts)
+    min_children, max_children = 200, 500
+    min_svi, max_svi = 0.5, 0.98
+
+    tracts: list[Tract] = []
+    for i in range(n):
+        geoid = f"IND_DEL_{1000 + i + 1}"
+
+        # Lower connection counts per tract due to shared utility points
+        lines_count = int(rng.normal(loc=800, scale=250))
+        if lines_count < 0:
+            lines_count = 0
+
+        children_under6 = int(rng.integers(min_children, max_children + 1))
+        svi_percentile = float(rng.uniform(min_svi, max_svi))
+        svi_percentile = round(max(0.0, min(1.0, svi_percentile)), 4)
+        has_inventory_flag = bool(rng.choice([True, False], p=[0.7, 0.3]))
+
+        tract = Tract(
+            geoid=geoid,
+            lines_count=lines_count,
+            children_under6=children_under6,
+            svi_percentile=svi_percentile,
+            has_inventory_flag=has_inventory_flag,
+            synthetic=True
+        )
+        tracts.append(tract)
+
+    india_file = SYNTH_DIR / "synthetic_tracts_india.json"
+    with open(india_file, "w", encoding="utf-8") as fh:
+        json.dump([t.model_dump() for t in tracts], fh, indent=2)
+
+    return tracts
+

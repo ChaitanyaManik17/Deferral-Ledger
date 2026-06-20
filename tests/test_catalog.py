@@ -18,16 +18,14 @@ import textwrap
 from pathlib import Path
 
 import pytest
-import yaml
 
 from catalog import (
     CatalogValidationError,
-    MissingCitationError,
     default_enabled_edges,
-    load_edges,
     load_contested_registry,
+    load_edges,
 )
-from priors import point, to_distribution, ci_to_sd
+from priors import ci_to_sd, point, to_distribution
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -282,7 +280,10 @@ class TestPriorPoint:
 
     def _make_edge(self, **kwargs):
         """Helper: load a single edge from a temporary YAML."""
-        import tempfile, yaml as _yaml
+        import tempfile
+
+        import yaml as _yaml
+
         from catalog import load_edges as _load
         data = {
             "id": "TEST_edge",
@@ -334,7 +335,10 @@ class TestPriorSamplers:
     N = 100_000  # large enough for reliable mean/shape checks
 
     def _make_edge(self, **kwargs):
-        import tempfile, yaml as _yaml
+        import tempfile
+
+        import yaml as _yaml
+
         from catalog import load_edges as _load
         data = {
             "id": "SAMPLE_edge",
