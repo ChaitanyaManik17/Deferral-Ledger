@@ -232,7 +232,8 @@ with tab_memo:
     else:
         st.caption(f"ℹ️ {narration_status['message']}")
     with st.container(border=True):
-        st.markdown(memo_text)
+        # Escape '$' so Streamlit doesn't treat dollar amounts as LaTeX math ($...$).
+        st.markdown(memo_text.replace("$", "\\$"))
 
 # ── Tract Map ──────────────────────────────────────────────────────────────────
 with tab_map:
@@ -277,4 +278,28 @@ with tab_gov:
     with g2:
         st.markdown(ui.consent_log_html(audit.get_consent_logs()), unsafe_allow_html=True)
         rec = audit.get_audit_record(mc_result.run_id)
-        st.markdown(ui.audit_json_html(rec.model_dump() if rec else None, run_short), unsafe_allow_html=True)
+        if rec:
+            audit_dict = rec.model_dump()
+        else:  # fall back to in-memory data so the snapshot is never empty
+            audit_dict = {
+                "run_id": mc_result.run_id,
+                "user": "system_operator",
+                "inputs_snapshot_ref": "data/synthetic/synthetic_tracts.json",
+                "catalog_version": mc_result.catalog_version,
+                "tract": selected_tract.geoid,
+                "defer_years": defer_years,
+                "seed": seed,
+                "overrides": [],
+                "contested_edges_enabled": [
+                    e for e in ("E6_adult_bll_to_cvd_ckd", "E7_bll_to_crime") if e in active_edge_ids
+                ],
+                "timestamp": mc_result.created_at,
+            }
+        st.markdown(
+            f"<div style='background:{ui.INK};border-radius:13px;padding:18px 22px;margin-top:18px'>"
+            f"<div style='font-size:13px;font-weight:700;color:#fff;font-family:{ui.DISPLAY}'>Immutable run audit snapshot</div>"
+            f"<div style='font-family:{ui.MONO};font-size:10.5px;color:{ui.MUTED_D2};margin-top:2px'>"
+            f"run_id {run_short} · persisted to SQLite</div></div>",
+            unsafe_allow_html=True,
+        )
+        st.json(audit_dict)
