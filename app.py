@@ -9,9 +9,11 @@ surfaces audit logs and edge lifecycles, and embeds interactive panels.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+
 
 import numpy as np
 import pandas as pd
@@ -361,7 +363,7 @@ with tab_brief:
     st.subheader("Generated Policy Brief & Memorandum")
     
     # Check if user wants to use Gemini API narration
-    api_key_status = "Available (narration active)" if ("GEMINI_API_KEY" in st.os.environ or "GOOGLE_API_KEY" in st.os.environ) else "Not configured (local template active)"
+    api_key_status = "Available (narration active)" if ("GEMINI_API_KEY" in os.environ or "GOOGLE_API_KEY" in os.environ) else "Not configured (local template active)"
     st.caption(f"Gemini API Key Status: **{api_key_status}**")
     
     memo_text = brief.generate_brief(mc_result, sobol_res, commission_rec, compare_res, edges_catalog)
