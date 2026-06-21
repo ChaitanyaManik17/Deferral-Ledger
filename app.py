@@ -319,6 +319,52 @@ if _val:
         st.dataframe(pd.DataFrame(_val.get("checks", [])), use_container_width=True, hide_index=True)
 
 
+# ── Decision Impact: Before vs After (lead with impact) ───────────────────────
+st.markdown("### Decision Impact — Before vs After")
+_imp1, _imp2 = st.columns(2)
+with _imp1:
+    st.markdown(
+        "<div class='metric-card' style='border-left-color:#7f8c8d;'>"
+        "<div class='metric-label'>Before — status quo</div>"
+        "<div style='margin-top:6px;'>A defer-vs-replace call made on a <b>single guessed cost</b> "
+        "(or none): no uncertainty, no view of which assumption matters, no audit trail.</div></div>",
+        unsafe_allow_html=True,
+    )
+with _imp2:
+    if is_mc and mc_result.multiplier_mean is not None:
+        _ci = mc_result.ci90 or (0.0, 0.0)
+        _p = mc_result.p_gt_1 or 0.0
+        _drv = commission_rec.get("top_driver", "N/A")
+        _after = (
+            f"Every deferred $1 → <b>${mc_result.multiplier_mean:.2f}</b> later "
+            f"(90% CI ${_ci[0]:.2f}–${_ci[1]:.2f}); <b>P(M&gt;1)={_p:.0%}</b>. "
+            f"Top uncertainty driver: <b>{_drv}</b> → commission that study first. "
+            + ("⚠ Abstained → routed to human review." if mc_result.abstain else "")
+        )
+    else:
+        _after = "Enable Monte-Carlo draws (sidebar) to see the probability-bounded recommendation."
+    st.markdown(
+        "<div class='metric-card' style='border-left-color:#27ae60;'>"
+        "<div class='metric-label'>After — DEFERRAL LEDGER</div>"
+        f"<div style='margin-top:6px;'>{_after}</div></div>",
+        unsafe_allow_html=True,
+    )
+
+with st.expander("❓ Why not just a spreadsheet, a form, or a search?"):
+    st.markdown(
+        "- **A spreadsheet gives one number.** The real inputs (how much blood lead rises while a "
+        "pipe stays in the ground, $/IQ point) are *ranges*, not constants. We propagate that "
+        "uncertainty across a causal DAG via **Monte-Carlo** and report a **distribution + credible "
+        "interval** — never false-precision.\n"
+        "- **Sobol sensitivity** ranks *which* assumption drives the uncertainty, so you know **which "
+        "study to commission first**. A spreadsheet can't rank its own ignorance.\n"
+        "- **Abstention + self-validation** catch implausible results and route them to a human; a "
+        "form just returns whatever you typed.\n"
+        "- **Governance**: every run is cited, versioned, and audit-logged, and contested pathways "
+        "require explicit consent — none of which a spreadsheet provides."
+    )
+
+
 # ── Dashboard Tabs ────────────────────────────────────────────────────────────
 tab_visuals, tab_brief, tab_map, tab_optimizer, tab_governance = st.tabs([
     "📊 Analytics & Plots",
