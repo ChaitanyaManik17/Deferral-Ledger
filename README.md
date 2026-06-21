@@ -56,8 +56,7 @@ pip install -r requirements.txt      # or: make setup
 python -m pytest -q                  # 57 tests
 streamlit run app.py                 # launch the dashboard
 
-# Optional — enable LLM narration of the decision brief (free Google AI Studio key).
-# Falls back to a deterministic template if unset/invalid, so the demo never depends on it.
+# Enable LLM narration of the decision brief.
 export GEMINI_API_KEY=...            # set in Streamlit → Secrets when deployed
 ```
 
@@ -73,7 +72,7 @@ Deferral-Ledger/
 ├── montecarlo.py     # Monte-Carlo posterior + scenario compare (now vs defer)
 ├── sensitivity.py    # Sobol global sensitivity + commission-a-study recommendation
 ├── validation.py     # Self-validation harness — "how we catch a wrong answer"
-├── gates.py          # Abstention gate (FR-ABS-1)
+├── gates.py          # Abstention gate
 ├── brief.py          # Decision brief (deterministic template + optional Gemini narration)
 ├── optimize.py       # Equity-weighted budget allocator
 ├── panels.py         # Plotly chart components
@@ -84,7 +83,6 @@ Deferral-Ledger/
 ├── synth.py · data_ingest.py   # synthetic generator + cached public data
 ├── catalog/          # edges.yaml (cited priors) + contested.yaml
 └── tests/            # 57 tests
-# docs/ (SRS, model card, evidence ledger) are kept locally and not tracked in git.
 ```
 
 ## Responsible AI — how we catch a wrong answer
