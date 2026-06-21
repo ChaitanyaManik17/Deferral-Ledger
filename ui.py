@@ -78,6 +78,10 @@ def _card(inner: str, pad: str = "22px 24px", extra: str = "") -> str:
     )
 
 
+# Flexbox horizontal-alignment map for single-grid table cells.
+_JUSTIFY = {"left": "flex-start", "right": "flex-end", "center": "center"}
+
+
 # ── Global CSS (plain string — no f-string, so CSS braces are safe) ───────────
 def inject_global_css() -> str:
     return """
@@ -511,13 +515,15 @@ def optimizer_table_html(opt_df) -> str:
             "minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,.6fr) minmax(0,1.5fr)")
 
     def hcell(t: str, align: str = "left") -> str:
-        return (f"<div style='padding:13px 16px;background:#f5f7fa;font-size:10.5px;color:{MUTED};"
-                f"font-weight:700;letter-spacing:.03em;text-transform:uppercase;text-align:{align};min-width:0'>{t}</div>")
+        return (f"<div style='display:flex;align-items:center;justify-content:{_JUSTIFY[align]};"
+                f"padding:13px 16px;background:#f5f7fa;font-size:10.5px;color:{MUTED};font-weight:700;"
+                f"letter-spacing:.03em;text-transform:uppercase;min-width:0'>{t}</div>")
 
     def dcell(content, bg: str, align: str = "left", color: str = MUTED, weight: int = 400, mono: bool = True) -> str:
         fam = f"font-family:{MONO};" if mono else ""
-        return (f"<div style='padding:12px 16px;border-bottom:1px solid #f0f2f5;min-width:0;background:{bg};"
-                f"{fam}font-size:12px;color:{color};font-weight:{weight};text-align:{align};word-break:break-word'>{content}</div>")
+        return (f"<div style='display:flex;align-items:center;justify-content:{_JUSTIFY[align]};"
+                f"padding:12px 16px;border-bottom:1px solid #f0f2f5;background:{bg};min-width:0;"
+                f"{fam}font-size:12px;color:{color};font-weight:{weight};text-align:{align};overflow-wrap:anywhere'>{content}</div>")
 
     cells = (hcell("Tract") + hcell("SVI", "right") + hcell("LSL", "right") + hcell("M", "right")
              + hcell("Repl. cost", "right") + hcell("Averted", "right") + hcell("Sel.", "center") + hcell("Reason"))
@@ -533,11 +539,12 @@ def optimizer_table_html(opt_df) -> str:
             + dcell(f"{r['Multiplier M']:.2f}", bg, "right", color=INK, weight=600)
             + dcell(usd(r["Replacement Cost ($)"]), bg, "right")
             + dcell(usd(r["Avoided Obligation ($)"]), bg, "right", color=GREEN, weight=600)
-            + (f"<div style='padding:12px 16px;border-bottom:1px solid #f0f2f5;background:{bg};text-align:center;min-width:0'>"
+            + (f"<div style='display:flex;align-items:center;justify-content:center;padding:12px 16px;"
+               f"border-bottom:1px solid #f0f2f5;background:{bg};min-width:0'>"
                f"<span style='font-size:10px;font-weight:700;color:{sc};background:{sbg};padding:3px 8px;border-radius:12px;white-space:nowrap'>{r['Selected']}</span></div>")
             + dcell(r["Allocation Reason"], bg, color=MUTED, mono=False)
         )
-    return (f"<div style='display:grid;grid-template-columns:{cols};align-items:center;"
+    return (f"<div style='display:grid;grid-template-columns:{cols};"
             f"background:#fff;border:1px solid {CARD_BORDER};border-radius:13px;overflow:hidden'>{cells}</div>")
 
 
@@ -545,11 +552,16 @@ def optimizer_table_html(opt_df) -> str:
 def lifecycle_table_html(edges, ref_date) -> str:
     from datetime import datetime
     cols = "minmax(0,1.7fr) minmax(0,1.1fr) minmax(0,.6fr) minmax(0,1fr)"
-    base = "padding:11px 12px;border-bottom:1px solid #f0f2f5;min-width:0;"
 
     def hcell(t: str, align: str = "left") -> str:
-        return (f"<div style='padding:10px 12px;background:#f5f7fa;font-size:10px;color:{MUTED};"
-                f"font-weight:700;letter-spacing:.03em;text-transform:uppercase;text-align:{align};min-width:0'>{t}</div>")
+        return (f"<div style='display:flex;align-items:center;justify-content:{_JUSTIFY[align]};"
+                f"padding:10px 12px;background:#f5f7fa;font-size:10px;color:{MUTED};font-weight:700;"
+                f"letter-spacing:.03em;text-transform:uppercase;min-width:0'>{t}</div>")
+
+    def dcell(content, align: str = "left", color: str = MUTED) -> str:
+        return (f"<div style='display:flex;align-items:center;justify-content:{_JUSTIFY[align]};"
+                f"padding:11px 12px;border-bottom:1px solid #f0f2f5;min-width:0;font-family:{MONO};"
+                f"font-size:11px;color:{color};text-align:{align};overflow-wrap:anywhere'>{content}</div>")
 
     cells = hcell("Edge") + hcell("Validated") + hcell("Age", "right") + hcell("Status", "center")
     for e in edges:
@@ -561,13 +573,11 @@ def lifecycle_table_html(edges, ref_date) -> str:
         bc = AMBER if stale else GREEN
         bbg = AMBER_BAN if stale else GREEN_TINT
         bt = "⚠ Stale" if stale else "✓ Current"
-        cells += (
-            f"<div style='{base}font-family:{MONO};font-size:11px;color:{INK};word-break:break-word'>{e.id}</div>"
-            f"<div style='{base}font-family:{MONO};font-size:11px;color:{MUTED}'>{e.last_validated}</div>"
-            f"<div style='{base}font-family:{MONO};font-size:11px;color:{MUTED};text-align:right'>{age}d</div>"
-            f"<div style='{base}text-align:center'><span style='font-size:10px;font-weight:700;color:{bc};background:{bbg};padding:3px 9px;border-radius:12px;white-space:nowrap'>{bt}</span></div>"
-        )
-    grid = (f"<div style='display:grid;grid-template-columns:{cols};align-items:center;"
+        badge = (f"<div style='display:flex;align-items:center;justify-content:center;padding:11px 12px;"
+                 f"border-bottom:1px solid #f0f2f5;min-width:0'>"
+                 f"<span style='font-size:10px;font-weight:700;color:{bc};background:{bbg};padding:3px 9px;border-radius:12px;white-space:nowrap'>{bt}</span></div>")
+        cells += dcell(e.id, color=INK) + dcell(e.last_validated) + dcell(f"{age}d", "right") + badge
+    grid = (f"<div style='display:grid;grid-template-columns:{cols};"
             f"border:1px solid {CARD_BORDER};border-radius:10px;overflow:hidden'>{cells}</div>")
     head = (
         f"<h3 style='font-size:16px;font-weight:700;color:{INK};margin:0 0 4px'>Causal prior expiration &amp; lifecycle</h3>"
