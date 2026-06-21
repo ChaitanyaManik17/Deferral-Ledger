@@ -505,63 +505,75 @@ def optimizer_kpis_html(allocated: float, averted: float, roi: float) -> str:
 
 
 def optimizer_table_html(opt_df) -> str:
-    cols = "1.3fr .9fr .8fr .9fr 1.2fr 1.3fr .8fr 1.6fr"
-    header = (
-        f"<div style='display:grid;grid-template-columns:{cols};padding:13px 20px;background:#f5f7fa;"
-        f"border-bottom:1px solid {CARD_BORDER};font-size:10.5px;color:{MUTED};font-weight:700;letter-spacing:.03em;text-transform:uppercase'>"
-        f"<span>Tract</span><span style='text-align:right'>SVI</span><span style='text-align:right'>LSL</span>"
-        f"<span style='text-align:right'>M</span><span style='text-align:right'>Repl. cost</span>"
-        f"<span style='text-align:right'>Averted</span><span style='text-align:center'>Sel.</span><span>Reason</span></div>"
-    )
-    rows = ""
+    # Single grid (not per-row grids) so columns align; minmax(0,…fr) lets long
+    # tokens wrap instead of widening a track and breaking alignment.
+    cols = ("minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.6fr) minmax(0,.7fr) "
+            "minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,.6fr) minmax(0,1.5fr)")
+
+    def hcell(t: str, align: str = "left") -> str:
+        return (f"<div style='padding:13px 16px;background:#f5f7fa;font-size:10.5px;color:{MUTED};"
+                f"font-weight:700;letter-spacing:.03em;text-transform:uppercase;text-align:{align};min-width:0'>{t}</div>")
+
+    def dcell(content, bg: str, align: str = "left", color: str = MUTED, weight: int = 400, mono: bool = True) -> str:
+        fam = f"font-family:{MONO};" if mono else ""
+        return (f"<div style='padding:12px 16px;border-bottom:1px solid #f0f2f5;min-width:0;background:{bg};"
+                f"{fam}font-size:12px;color:{color};font-weight:{weight};text-align:{align};word-break:break-word'>{content}</div>")
+
+    cells = (hcell("Tract") + hcell("SVI", "right") + hcell("LSL", "right") + hcell("M", "right")
+             + hcell("Repl. cost", "right") + hcell("Averted", "right") + hcell("Sel.", "center") + hcell("Reason"))
     for _, r in opt_df.iterrows():
         sel = str(r["Selected"]).upper() == "YES"
-        sel_color = GREEN if sel else MUTED2
-        sel_bg = GREEN_TINT if sel else "#f0f2f5"
-        row_bg = "#f7fcf9" if sel else "#fff"
-        rows += (
-            f"<div style='display:grid;grid-template-columns:{cols};padding:12px 20px;border-bottom:1px solid #f0f2f5;align-items:center;background:{row_bg}'>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{INK};font-weight:500'>{r['Tract ID']}</span>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{MUTED};text-align:right'>{r['SVI Percentile']:.4f}</span>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{MUTED};text-align:right'>{int(r['LSL Count'])}</span>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{INK};text-align:right;font-weight:600'>{r['Multiplier M']:.2f}</span>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{MUTED};text-align:right'>{usd(r['Replacement Cost ($)'])}</span>"
-            f"<span style='font-family:{MONO};font-size:12px;color:{GREEN};text-align:right;font-weight:600'>{usd(r['Avoided Obligation ($)'])}</span>"
-            f"<span style='text-align:center'><span style='font-size:10px;font-weight:700;color:{sel_color};background:{sel_bg};padding:3px 8px;border-radius:12px'>{r['Selected']}</span></span>"
-            f"<span style='font-size:11.5px;color:{MUTED}'>{r['Allocation Reason']}</span></div>"
+        bg = "#f7fcf9" if sel else "#fff"
+        sc = GREEN if sel else MUTED2
+        sbg = GREEN_TINT if sel else "#f0f2f5"
+        cells += (
+            dcell(r["Tract ID"], bg, color=INK, weight=500)
+            + dcell(f"{r['SVI Percentile']:.4f}", bg, "right")
+            + dcell(f"{int(r['LSL Count'])}", bg, "right")
+            + dcell(f"{r['Multiplier M']:.2f}", bg, "right", color=INK, weight=600)
+            + dcell(usd(r["Replacement Cost ($)"]), bg, "right")
+            + dcell(usd(r["Avoided Obligation ($)"]), bg, "right", color=GREEN, weight=600)
+            + (f"<div style='padding:12px 16px;border-bottom:1px solid #f0f2f5;background:{bg};text-align:center;min-width:0'>"
+               f"<span style='font-size:10px;font-weight:700;color:{sc};background:{sbg};padding:3px 8px;border-radius:12px;white-space:nowrap'>{r['Selected']}</span></div>")
+            + dcell(r["Allocation Reason"], bg, color=MUTED, mono=False)
         )
-    return f"<div style='background:#fff;border:1px solid {CARD_BORDER};border-radius:13px;overflow:hidden'>{header}{rows}</div>"
+    return (f"<div style='display:grid;grid-template-columns:{cols};align-items:center;"
+            f"background:#fff;border:1px solid {CARD_BORDER};border-radius:13px;overflow:hidden'>{cells}</div>")
 
 
 # ── Governance ────────────────────────────────────────────────────────────────
 def lifecycle_table_html(edges, ref_date) -> str:
     from datetime import datetime
-    cols = "1.4fr 1fr .6fr .9fr"
-    head = (
-        f"<h3 style='font-size:16px;font-weight:700;color:{INK};margin:0 0 4px'>Causal prior expiration &amp; lifecycle</h3>"
-        f"<p style='font-size:12px;color:{MUTED};margin:0 0 16px'>Every edge carries provenance + last-validated date. Stale priors are flagged.</p>"
-        f"<div style='display:grid;grid-template-columns:{cols};padding:10px 12px;background:#f5f7fa;border-radius:8px;"
-        f"font-size:10px;color:{MUTED};font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px'>"
-        f"<span>Edge</span><span>Validated</span><span style='text-align:right'>Age</span><span style='text-align:center'>Status</span></div>"
-    )
-    rows = ""
+    cols = "minmax(0,1.7fr) minmax(0,1.1fr) minmax(0,.6fr) minmax(0,1fr)"
+    base = "padding:11px 12px;border-bottom:1px solid #f0f2f5;min-width:0;"
+
+    def hcell(t: str, align: str = "left") -> str:
+        return (f"<div style='padding:10px 12px;background:#f5f7fa;font-size:10px;color:{MUTED};"
+                f"font-weight:700;letter-spacing:.03em;text-transform:uppercase;text-align:{align};min-width:0'>{t}</div>")
+
+    cells = hcell("Edge") + hcell("Validated") + hcell("Age", "right") + hcell("Status", "center")
     for e in edges:
         try:
             age = (ref_date - datetime.strptime(e.last_validated, "%Y-%m-%d")).days
         except Exception:
             age = 0
         stale = age > 365
-        badge_c = AMBER if stale else GREEN
-        badge_bg = AMBER_BAN if stale else GREEN_TINT
-        badge_t = "⚠ Stale" if stale else "✓ Current"
-        rows += (
-            f"<div style='display:grid;grid-template-columns:{cols};padding:11px 12px;border-bottom:1px solid #f0f2f5;align-items:center'>"
-            f"<span style='font-family:{MONO};font-size:11px;color:{INK}'>{e.id}</span>"
-            f"<span style='font-family:{MONO};font-size:11px;color:{MUTED}'>{e.last_validated}</span>"
-            f"<span style='font-family:{MONO};font-size:11px;color:{MUTED};text-align:right'>{age}d</span>"
-            f"<span style='text-align:center'><span style='font-size:10px;font-weight:700;color:{badge_c};background:{badge_bg};padding:3px 9px;border-radius:12px'>{badge_t}</span></span></div>"
+        bc = AMBER if stale else GREEN
+        bbg = AMBER_BAN if stale else GREEN_TINT
+        bt = "⚠ Stale" if stale else "✓ Current"
+        cells += (
+            f"<div style='{base}font-family:{MONO};font-size:11px;color:{INK};word-break:break-word'>{e.id}</div>"
+            f"<div style='{base}font-family:{MONO};font-size:11px;color:{MUTED}'>{e.last_validated}</div>"
+            f"<div style='{base}font-family:{MONO};font-size:11px;color:{MUTED};text-align:right'>{age}d</div>"
+            f"<div style='{base}text-align:center'><span style='font-size:10px;font-weight:700;color:{bc};background:{bbg};padding:3px 9px;border-radius:12px;white-space:nowrap'>{bt}</span></div>"
         )
-    return _card(head + rows)
+    grid = (f"<div style='display:grid;grid-template-columns:{cols};align-items:center;"
+            f"border:1px solid {CARD_BORDER};border-radius:10px;overflow:hidden'>{cells}</div>")
+    head = (
+        f"<h3 style='font-size:16px;font-weight:700;color:{INK};margin:0 0 4px'>Causal prior expiration &amp; lifecycle</h3>"
+        f"<p style='font-size:12px;color:{MUTED};margin:0 0 16px'>Every edge carries provenance + last-validated date. Stale priors are flagged.</p>"
+    )
+    return _card(head + grid)
 
 
 def recalibration_alert_html() -> str:
