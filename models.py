@@ -169,6 +169,7 @@ class MultiplierResult(BaseModel):
     abstain: bool = False                           # Day 2 gate
     abstain_message: str | None = None              # Explanation for abstention
     sobol: dict | None = None                       # Day 2
+    validation: dict | None = None                  # Tier 1 self-validation / failure-catching harness
     enabled_edges: list[str] = []
     catalog_version: str
     seed: int

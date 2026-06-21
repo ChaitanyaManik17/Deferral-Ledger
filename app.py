@@ -304,6 +304,21 @@ if mc_result.abstain:
     st.error(f"⚠️ **ABSTENTION CRITERIA MET (SRS FR-ABS-1):** {mc_result.abstain_message}")
 
 
+# ── Self-Validation: how we catch a wrong answer (Tier 1) ─────────────────────
+_val = mc_result.validation
+if _val:
+    _icon = "🔴" if _val.get("needs_human_review") else "🟢"
+    with st.expander(f"{_icon} Self-Validation — how we catch a wrong answer · {_val.get('summary', '')}",
+                     expanded=bool(_val.get("needs_human_review"))):
+        st.caption(
+            "Three independent self-checks run on every result: intermediate **tripwires**, "
+            "**literature-range** bounds (Lanphear/Grosse), and **deterministic-vs-Monte-Carlo** "
+            "agreement. Any failure routes the run to **human review** — the AI never finalizes a "
+            "flagged decision."
+        )
+        st.dataframe(pd.DataFrame(_val.get("checks", [])), use_container_width=True, hide_index=True)
+
+
 # ── Dashboard Tabs ────────────────────────────────────────────────────────────
 tab_visuals, tab_brief, tab_map, tab_optimizer, tab_governance = st.tabs([
     "📊 Analytics & Plots",
@@ -361,12 +376,18 @@ with tab_visuals:
 # ── Tab 2: Narrative Brief ────────────────────────────────────────────────────
 with tab_brief:
     st.subheader("Generated Policy Brief & Memorandum")
-    
-    # Check if user wants to use Gemini API narration
-    api_key_status = "Available (narration active)" if ("GEMINI_API_KEY" in os.environ or "GOOGLE_API_KEY" in os.environ) else "Not configured (local template active)"
-    st.caption(f"Gemini API Key Status: **{api_key_status}**")
-    
-    memo_text = brief.generate_brief(mc_result, sobol_res, commission_rec, compare_res, edges_catalog)
+
+    # Honest narration status: reflects whether the LLM call actually succeeded,
+    # not merely whether a key is present (numbers always come from the result objects).
+    memo_text, narration_status = brief.generate_brief(
+        mc_result, sobol_res, commission_rec, compare_res, edges_catalog, return_status=True
+    )
+    if narration_status["used_llm"]:
+        st.caption(f"🟢 Narration: {narration_status['message']}")
+    elif "GEMINI_API_KEY" in os.environ or "GOOGLE_API_KEY" in os.environ:
+        st.caption(f"🟠 Narration unavailable — {narration_status['message']}")
+    else:
+        st.caption(f"ℹ️ {narration_status['message']}")
     st.markdown(memo_text)
 
 

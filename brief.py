@@ -15,6 +15,17 @@ import requests
 
 from models import EdgePrior, MultiplierResult
 
+# Candidate models, tried in order. Google retires these periodically
+# (gemini-1.5-flash and gemini-2.0-flash are already gone), so we fall back
+# through a chain and skip any that 404. Set GEMINI_MODEL to force a single one.
+_FORCED_MODEL = os.environ.get("GEMINI_MODEL")
+GEMINI_MODELS = ([_FORCED_MODEL] if _FORCED_MODEL else []) + [
+    "gemini-2.5-flash-lite",   # fast/cheap — ideal for rephrasing
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-3-flash-preview",
+]
+
 
 def generate_brief(
     result: MultiplierResult,
@@ -22,7 +33,8 @@ def generate_brief(
     commission_rec: dict[str, Any],
     compare: dict[str, Any],
     edges: list[EdgePrior],
-) -> str:
+    return_status: bool = False,
+) -> str | tuple[str, dict[str, Any]]:
     """
     Generate a decision brief in markdown format.
     
@@ -65,6 +77,20 @@ def generate_brief(
     ci95_str = f"[{result.ci95[0]:.2f}, {result.ci95[1]:.2f}]" if result.ci95 else "N/A"
     mean_val = result.multiplier_mean if result.multiplier_mean is not None else result.multiplier_point
 
+    # 3b. Self-validation section (how we'd catch a wrong answer)
+    validation_section = ""
+    if getattr(result, "validation", None):
+        v = result.validation
+        v_lines = "\n".join(
+            f"- {c['name']}: **{c['level'].upper()}** — {c['detail']}" for c in v.get("checks", [])
+        )
+        validation_section = (
+            "\n## 5. How We'd Catch a Wrong Answer (Self-Validation)\n"
+            f"Status: **{v.get('summary', '')}**. The AI does not finalize a flagged decision — "
+            "any failed check routes the case to human review.\n"
+            f"{v_lines}\n"
+        )
+
     # 4. Generate the base templated brief
     templated_brief = f"""# DEFERRAL LEDGER — DECISION BRIEF
 
@@ -92,15 +118,16 @@ Comparing **Replace Now** (deferral = 0 years) vs. **Defer** ({result.defer_year
 ## 4. Edge Catalog and Evidence Citations
 The following causal links were active in this simulation:
 {edge_citations}
-"""
+{validation_section}"""
 
-    # 5. Check if LLM narration is enabled via API key
+    # 5. Determine narration status & (optionally) attempt LLM rephrasing
+    status: dict[str, Any] = {"used_llm": False, "model": GEMINI_MODELS[0], "message": ""}
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        return templated_brief.strip()
+        status["message"] = "No API key configured — using deterministic template."
+        return (templated_brief.strip(), status) if return_status else templated_brief.strip()
 
-    # Call Gemini REST API to rephrase the brief
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # Call Gemini REST API to rephrase the brief (the prompt forbids changing any number)
     headers = {"Content-Type": "application/json"}
     prompt = (
         "You are a professional public infrastructure policy analyst and writer. "
@@ -114,20 +141,40 @@ The following causal links were active in this simulation:
         "Here is the draft brief:\n\n" + templated_brief
     )
 
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=10.0
-        )
-        if response.status_code == 200:
-            data = response.json()
-            narrated = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-            if narrated:
-                return narrated
-    except Exception:
-        # Fall back to templated brief on any error/timeout
-        pass
+    last_msg = ""
+    for model in GEMINI_MODELS:
+        status["model"] = model
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=30.0,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                narrated = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if narrated:
+                    status["used_llm"] = True
+                    status["message"] = f"Narration live via {model}."
+                    return (narrated, status) if return_status else narrated
+                last_msg = "LLM returned empty text"
+                continue
+            try:
+                err_msg = response.json().get("error", {}).get("message", "")
+            except Exception:
+                err_msg = response.text[:160]
+            last_msg = f"HTTP {response.status_code}: {err_msg}"
+            # 404 = model retired → try the next candidate; other errors (auth/quota) → stop.
+            if response.status_code != 404:
+                break
+        except requests.exceptions.Timeout:
+            last_msg = f"timeout on {model}"
+            continue  # a faster candidate may respond
+        except Exception as exc:
+            last_msg = f"{type(exc).__name__}"
+            break
 
-    return templated_brief.strip()
+    status["message"] = f"Narration unavailable ({last_msg}) — using template."
+    return (templated_brief.strip(), status) if return_status else templated_brief.strip()

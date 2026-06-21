@@ -16,6 +16,7 @@ from catalog import get_catalog_version, load_edges
 from gates import apply_abstention
 from models import EdgePrior, MultiplierResult, ScenarioRun, Tract
 from priors import point, to_distribution
+from validation import validate_result
 
 
 def run_monte_carlo(
@@ -110,6 +111,7 @@ def run_monte_carlo(
             seed=seed,
             created_at=datetime.now(UTC).isoformat().replace("+00:00", "Z")
         )
+        result.validation = validate_result(result, tract, scenario, edges)
         try:
             from audit import save_audit_record, log_consent_event
             from models import AuditRecord
@@ -210,6 +212,9 @@ def run_monte_carlo(
 
     # 8. Apply abstention gate
     result = apply_abstention(result)
+
+    # 8b. Self-validation harness (Tier 1 — catch a wrong answer)
+    result.validation = validate_result(result, tract, scenario, edges)
 
     # 9. Save audit record and log consent events
     try:

@@ -64,3 +64,6 @@ data/cache/
 # Runtime SQLite
 data/audit.db
 *.db
+
+# Internal planning docs (kept local, not tracked)
+docs/
