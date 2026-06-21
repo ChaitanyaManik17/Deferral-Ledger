@@ -14,6 +14,7 @@ Numbers come from the live engine; this module only renders.
 
 from __future__ import annotations
 
+import html as _html
 import json
 from typing import Any
 
@@ -596,10 +597,16 @@ def consent_log_html(consent_rows: list[dict]) -> str:
 
 
 def audit_json_html(record: dict | None, run_short: str) -> str:
-    payload = json.dumps(record, indent=2) if record else "{ persisting to SQLite store… }"
+    # NOTE: no raw newlines in the returned HTML — Streamlit's markdown renderer
+    # breaks an HTML block at embedded "\n", which silently drops the content.
+    raw = (
+        json.dumps(record, indent=2, default=str) if record
+        else '{\n  "status": "record is persisting to the SQLite store…"\n}'
+    )
+    payload = _html.escape(raw).replace("\n", "<br>").replace(" ", "&nbsp;")
     return (
         f"<div style='background:{INK};border-radius:13px;padding:22px 24px;margin-top:18px'>"
         f"<div style='font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;font-family:{DISPLAY}'>Immutable run audit snapshot</div>"
-        f"<div style='font-family:{MONO};font-size:10.5px;color:{MUTED_D};margin-bottom:16px'>run_id {run_short}</div>"
-        f"<pre style='font-family:{MONO};font-size:11px;color:{GREEN_ACCENT};line-height:1.7;margin:0;white-space:pre-wrap'>{payload}</pre></div>"
+        f"<div style='font-family:{MONO};font-size:10.5px;color:{MUTED_D2};margin-bottom:16px'>run_id {run_short}</div>"
+        f"<div style='font-family:{MONO};font-size:11px;color:{GREEN_ACCENT};line-height:1.7'>{payload}</div></div>"
     )
